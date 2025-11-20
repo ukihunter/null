@@ -7,3 +7,7 @@ export const getUserById = async (id: string) => {
     const user = await db.user.findUnique({});
   } catch (error) {}
 };
+
+export interface LogoutButtonProps {
+  children: React.ReactNode;
+}
