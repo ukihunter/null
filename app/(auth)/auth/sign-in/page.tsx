@@ -6,7 +6,7 @@ const SignInPage = () => {
   return (
     <>
       <Image
-        src={"/logo.svg"}
+        src={"/null.svg"}
         alt="Login-Image"
         height={300}
         width={300}
