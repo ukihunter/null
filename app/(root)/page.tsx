@@ -3,6 +3,7 @@ import { FloatingObjects } from "@/components/floating-objects";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { FeaturesCards } from "@/components/card/fe-card";
 
 export default function Home() {
   return (
@@ -26,11 +27,15 @@ export default function Home() {
           no friction, just pure collaboration.
         </p>
         <Link href={"/dashboard"}>
-          <Button variant={"default"} className="mb-4" size={"lg"}>
+          <Button variant={"default"} className="mb-40" size={"lg"}>
             Get Started
             <ArrowUpRight className="w-3.5 h-3.5" />
           </Button>
         </Link>
+        <h2 className="text-white font-bold text-2xl mr-10 mb-5">
+          What we offer{" "}
+        </h2>
+        <FeaturesCards />
       </div>
     </>
   );
