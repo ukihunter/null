@@ -2,7 +2,6 @@ import NextAuth from "next-auth";
 
 import authConfig from "./auth.config";
 import { db } from "./lib/db";
-import { getUserById } from "@/features/auth/actions";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   callbacks: {
@@ -82,10 +81,16 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
     async jwt({ token }) {
       if (!token.sub) return token;
-      const existingUser = await getUserById(token.sub);
+
+      // Find user by email instead of token.sub to ensure we get the correct database ID
+      const existingUser = await db.user.findUnique({
+        where: { email: token.email as string },
+      });
 
       if (!existingUser) return token;
 
+      // Override token.sub with the actual database user ID
+      token.sub = existingUser.id;
       token.name = existingUser.name;
       token.email = existingUser.email;
       token.role = existingUser.role;

@@ -76,11 +76,13 @@ model EdditorSession {
   title        String?
   description  String?
   template     Templates @default(REACTJS)
-
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   starmark StarMark[]
-  userId      String 
-  user User @relation (fields:[userId] , references: [id], onDelete: Cascade)
+  userId      String?
+  user User? @relation (fields:[userId] , references: [id], onDelete: Cascade)
   
 }
 

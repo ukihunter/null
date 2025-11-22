@@ -9,28 +9,18 @@ import { useState } from "react";
 
 import TemplateselectionModel from "./template-selector-model";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { createEdditorsession } from "../actions";
+import { Templates } from "@prisma/client";
 
 const Addnewbutton = () => {
   const [isModelOpen, setIsModelOpen] = useState(false);
 
-  const [selectTemplate, setSelectTemplate] = useState<{
-    title: string;
-    template:
-      | "REACTJS"
-      | "NEXTJS"
-      | "EXPRESS"
-      | "REACT_NATIVE"
-      | "HONO"
-      | "VUE"
-      | "ANGULAR"
-      | "SVELTE";
-    description?: string;
-  } | null>(null);
-
+  const router = useRouter();
   const handleSubmit = async (data: {
     title: string;
     template:
-      | "REACTJS"
+      | "REACT"
       | "NEXTJS"
       | "EXPRESS"
       | "REACT_NATIVE"
@@ -40,14 +30,21 @@ const Addnewbutton = () => {
       | "SVELTE";
     description?: string;
   }) => {
-    setSelectTemplate(data);
-    const res = await createEditorSession(data);
+    // Map REACT to REACTJS for Prisma
+    const template = data.template === "REACT" ? "REACTJS" : data.template;
+
+    const res = await createEdditorsession({
+      title: data.title,
+      description: data.description || "",
+      template: template as Templates,
+      userId: "", // This is ignored - user is fetched from session in the action
+    });
     toast("Playground created successfully");
     // Here you would typically handle the creation of a new playground
     // with the selected template data
     console.log("Creating new session:", data);
     setIsModelOpen(false);
-    route.push(`/playground/${res?.id}`);
+    router.push(`/playground/${res?.id}`);
   };
   return (
     <>

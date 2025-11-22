@@ -209,7 +209,14 @@ const TemplateSelectorModel = ({
     if (selectedTemplate) {
       const templateMap: Record<
         string,
-        "REACT" | "NEXTJS" | "EXPRESS" | "VUE" | "HONO" | "ANGULAR"
+        | "REACT"
+        | "NEXTJS"
+        | "EXPRESS"
+        | "VUE"
+        | "HONO"
+        | "ANGULAR"
+        | "REACT_NATIVE"
+        | "SVELTE"
       > = {
         react: "REACT",
         nextjs: "NEXTJS",
@@ -217,6 +224,8 @@ const TemplateSelectorModel = ({
         vue: "VUE",
         hono: "HONO",
         angular: "ANGULAR",
+        react_native: "REACT_NATIVE",
+        svelte: "SVELTE",
       };
 
       const template = templates.find((t) => t.id === selectedTemplate);
@@ -344,7 +353,7 @@ const TemplateSelectorModel = ({
 
                           <div className="flex gap-4">
                             <div
-                              className="relative w-16 h-16 flex-shrink-0 flex items-center justify-center rounded-full"
+                              className="relative w-16 h-16  flex items-center justify-center rounded-full"
                               style={{ backgroundColor: `${template.color}15` }}
                             >
                               <Image

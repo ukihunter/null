@@ -18,15 +18,20 @@ export const createEdditorsession = async (data: {
 
   const user = await currentUser();
 
+  if (!user?.id) {
+    throw new Error("User not authenticated");
+  }
+
   try {
     const edditorSession = await db.edditorSession.create({
       data: {
         title,
         description,
         template,
-        userId: user?.id || "",
+        userId: user.id,
       },
     });
+
     return edditorSession;
   } catch (error) {
     console.error("Error creating Edditor session:", error);
@@ -37,16 +42,27 @@ export const createEdditorsession = async (data: {
 export const getEdditorSessionsForUser = async () => {
   const user = await currentUser();
 
+  if (!user?.id) {
+    return [];
+  }
+
   try {
     const edditorSessions = await db.edditorSession.findMany({
       where: {
-        userId: user?.id || "",
+        userId: user.id,
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+        },
         starmark: {
           where: {
-            userId: user?.id || "",
+            userId: user.id,
           },
           select: {
             isMarked: true,
@@ -54,7 +70,9 @@ export const getEdditorSessionsForUser = async () => {
         },
       },
     });
-    return edditorSessions;
+
+    // Filter out any sessions with null users (shouldn't happen, but safety check)
+    return edditorSessions.filter((session) => session.user !== null);
   } catch (error) {
     console.error("Error fetching Edditor sessions:", error);
     throw error;

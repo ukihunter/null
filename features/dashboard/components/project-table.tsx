@@ -43,6 +43,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   MoreHorizontal,
   Edit3,
@@ -57,10 +58,13 @@ import { Project } from "../types";
 
 interface ProjectTableProps {
   projects: Project[];
-  noUpdateProject?: Function;
-  onDeleteProject?: Function;
-  onUpdateProject?: Function;
-  onDuplicateProject?: Function;
+  onUpdateProject?: (
+    id: string,
+    data: { title: string; description: string }
+  ) => Promise<void>;
+  onDeleteProject?: (id: string) => Promise<void>;
+  onDuplicateProject?: (id: string) => Promise<void>;
+  onMarkasFavorite?: (id: string) => Promise<void>;
 }
 
 interface EdditProjectData {
@@ -74,6 +78,7 @@ export default function ProjectTable({
   onUpdateProject,
   onDuplicateProject,
 }: ProjectTableProps) {
+  const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -99,7 +104,12 @@ export default function ProjectTable({
 
   const handleEditClick = (project: Project) => {};
 
-  const handleDeleteClick = (project: Project) => {};
+  const handleDeleteClick = (project: Project) => {
+    setSelectedProject(project);
+
+    setDeleteDialogOpen(true);
+    console.log("Deleting project:", project);
+  };
 
   const copyProjectUrl = (projectId: string) => {
     const projectUrl = `${window.location.origin}/editor/${projectId}`;
@@ -232,6 +242,42 @@ export default function ProjectTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              project &quot;{selectedProject?.title}&quot;.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!selectedProject || !onDeleteProject) return;
+                setIsLoading(true);
+                try {
+                  await onDeleteProject(selectedProject.id);
+                  toast.success("Project deleted successfully!");
+                  setDeleteDialogOpen(false);
+                  router.refresh(); // Refresh the page to show updated data
+                } catch (error) {
+                  console.error("Error deleting project:", error);
+                  toast.error("Failed to delete project.");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isLoading ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
