@@ -31,7 +31,7 @@ const Addrepobutton = () => {
           <div className="flex flex-col">
             <h1 className="text-xl font-bold text-[#ff6585]">Add New</h1>
             <p className="text-sm text-muted-foreground max-w-[220px]">
-              Create a Github repository
+              Open a GitHub repository and work on it.
             </p>
           </div>
         </div>
