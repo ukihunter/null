@@ -186,3 +186,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom scrollbar styles */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thumb-red-500::-webkit-scrollbar-thumb {
+  background-color: #ef4444;
+  border-radius: 4px;
+}
+
+.scrollbar-thumb-red-500::-webkit-scrollbar-thumb:hover {
+  background-color: #dc2626;
+}
+
+.scrollbar-track-transparent::-webkit-scrollbar-track {
+  background-color: transparent;
+}

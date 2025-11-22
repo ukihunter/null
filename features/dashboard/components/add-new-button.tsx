@@ -4,13 +4,55 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+
 import { useState } from "react";
 
+import TemplateselectionModel from "./template-selector-model";
+import { toast } from "sonner";
+
 const Addnewbutton = () => {
+  const [isModelOpen, setIsModelOpen] = useState(false);
+
+  const [selectTemplate, setSelectTemplate] = useState<{
+    title: string;
+    template:
+      | "REACTJS"
+      | "NEXTJS"
+      | "EXPRESS"
+      | "REACT_NATIVE"
+      | "HONO"
+      | "VUE"
+      | "ANGULAR"
+      | "SVELTE";
+    description?: string;
+  } | null>(null);
+
+  const handleSubmit = async (data: {
+    title: string;
+    template:
+      | "REACTJS"
+      | "NEXTJS"
+      | "EXPRESS"
+      | "REACT_NATIVE"
+      | "HONO"
+      | "VUE"
+      | "ANGULAR"
+      | "SVELTE";
+    description?: string;
+  }) => {
+    setSelectTemplate(data);
+    const res = await createEditorSession(data);
+    toast("Playground created successfully");
+    // Here you would typically handle the creation of a new playground
+    // with the selected template data
+    console.log("Creating new session:", data);
+    setIsModelOpen(false);
+    route.push(`/playground/${res?.id}`);
+  };
   return (
     <>
       <div
+        onClick={() => setIsModelOpen(true)}
         className="group px-6 py-6 flex flex-row justify-between items-center border rounded-lg bg-muted cursor-pointer 
         transition-all duration-300 ease-in-out
         hover:bg-background hover:border-[#f0627f] hover:scale-[1.02]
@@ -46,6 +88,11 @@ const Addnewbutton = () => {
           />
         </div>
       </div>
+      <TemplateselectionModel
+        isOpen={isModelOpen}
+        onClose={() => setIsModelOpen(false)}
+        onSubmit={handleSubmit}
+      />
     </>
   );
 };
