@@ -102,7 +102,31 @@ export default function ProjectTable({
     }
   };
 
-  const handleEditClick = (project: Project) => {};
+  const handleUpdateProject = async () => {
+    if (!selectedProject || !onUpdateProject) return;
+
+    setIsLoading(true);
+    try {
+      await onUpdateProject(selectedProject.id, editData);
+      setEditDialogOpen(false);
+      setSelectedProject(null);
+      toast.success("Project updated successfully");
+    } catch (error) {
+      toast.error("Failed to update project");
+      console.error("Error updating project:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditClick = (project: Project) => {
+    setSelectedProject(project);
+    setEditData({
+      title: project.title,
+      description: project.description || "",
+    });
+    setEditDialogOpen(true);
+  };
 
   const handleDeleteClick = (project: Project) => {
     setSelectedProject(project);
@@ -242,7 +266,63 @@ export default function ProjectTable({
           </TableBody>
         </Table>
       </div>
-
+      {/* Edit Project Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Make changes to your project details here. Click save when you're
+              done.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Project Title</Label>
+              <Input
+                id="title"
+                value={editData.title}
+                onChange={(e) =>
+                  setEditData((prev) => ({ ...prev, title: e.target.value }))
+                }
+                placeholder="Enter project title"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={editData.description}
+                onChange={(e) =>
+                  setEditData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                placeholder="Enter project description"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditDialogOpen(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUpdateProject}
+              disabled={isLoading || !editData.title.trim()}
+            >
+              {isLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
