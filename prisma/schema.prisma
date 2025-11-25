@@ -83,9 +83,19 @@ model EdditorSession {
   starmark StarMark[]
   userId      String?
   user User? @relation (fields:[userId] , references: [id], onDelete: Cascade)
+  templateFiles TemplatesFile[]
   
 }
 
+
+model TemplatesFile {
+  id String @id @default(cuid()) @map("_id")
+  content Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  edditorSessionId String
+  edditorSession EdditorSession @relation (fields:[edditorSessionId] , references: [id], onDelete: Cascade)
+}
 
 model StarMark {
   id String @id @default(cuid()) @map("_id")
