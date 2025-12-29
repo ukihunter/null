@@ -1,8 +1,10 @@
 export const templatePaths = {
-  REACT: "/null-template/react-ts",
-  NEXTJS: "/null-template/nextjs-new",
-  EXPRESS: "/null-template/express-simple",
-  VUE: "/null-template/vue",
-  HONO: "/null-template/hono-nodejs-starter",
-  ANGULAR: "/null-template/angular",
+  REACTJS: "/null-templte/react-ts",
+  NEXTJS: "/null-templte/nextjs-new",
+  EXPRESS: "/null-templte/express-simple",
+  VUE: "/null-templte/vue",
+  HONO: "/null-templte/hono-nodejs-starter",
+  ANGULAR: "/null-templte/angular",
+  REACT_NATIVE: "/null-templte/react",
+  SVELTE: "/null-templte/sveltekit",
 };

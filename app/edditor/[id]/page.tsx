@@ -10,7 +10,6 @@ const Page = () => {
   const { id } = useParams() as { id?: string };
   const { editorData, templateData } = useEditor(id || "");
   console.log(templateData);
-  console.log(editorData);
   return (
     <div>
       <>

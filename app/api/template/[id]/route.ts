@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import path from "path";
 import fs from "fs/promises";
 import { NextRequest } from "next/server";
-import { ca } from "date-fns/locale";
 
 function validateJsonStructure(data: unknown): boolean {
   try {
@@ -42,12 +41,20 @@ export async function GET(
   const templatePath = templatePaths[templateKey];
 
   if (!templatePath) {
-    return new Response("Invalid template type", { status: 400 });
+    console.error(`Invalid template type: ${editor.template}`);
+    return new Response(`Invalid template type: ${editor.template}`, { status: 400 });
   }
 
   try {
     const inputPath = path.join(process.cwd(), templatePath);
-    const outputFile = path.join(process.cwd(), "temp", `${id}.json`);
+    const tempDir = path.join(process.cwd(), "temp");
+    const outputFile = path.join(tempDir, `${id}.json`);
+    
+    // Ensure temp directory exists
+    await fs.mkdir(tempDir, { recursive: true });
+    
+    console.log(`Processing template: ${templateKey} from ${inputPath}`);
+    
     await saveTemplateStructureToJson(inputPath, outputFile);
     const result = await readTemplateStructureFromJson(outputFile);
     if (!validateJsonStructure(result.items)) {
@@ -59,6 +66,8 @@ export async function GET(
       { status: 200 }
     );
   } catch (error) {
-    return new Response("Error processing template", { status: 500 });
+    console.error("Error processing template:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(`Error processing template: ${errorMessage}`, { status: 500 });
   }
 }

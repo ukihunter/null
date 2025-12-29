@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 
 import { toast } from "sonner";
 import { TemplateFolder } from "../lib/path-to-jason";
-import { getEdditorById } from "../actions";
-import { set } from "date-fns";
+import { getEdditorById, saveUpdatedCode } from "../actions";
 
 interface UseEditorData {
   id: string;
   name?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface UseEditorReturn {
@@ -43,7 +42,7 @@ export const useEditor = (id: string): UseEditorReturn => {
         return;
       }
       const res = await fetch(`/api/template/${id}`);
-      if (res.ok) throw new Error(`No template data found : ${res.status} `);
+      if (!res.ok) throw new Error(`No template data found : ${res.status} `);
 
       const templateRes = await res.json();
       if (templateRes.templateJson && Array.isArray(templateRes.templateJson)) {
@@ -61,7 +60,7 @@ export const useEditor = (id: string): UseEditorReturn => {
       }
 
       toast.success("Template loaded successfully");
-    } catch (error) {
+    } catch {
       setError("Failed to load editor data");
       toast.error("Failed to load editor data");
     } finally {
