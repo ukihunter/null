@@ -42,19 +42,21 @@ export async function GET(
 
   if (!templatePath) {
     console.error(`Invalid template type: ${editor.template}`);
-    return new Response(`Invalid template type: ${editor.template}`, { status: 400 });
+    return new Response(`Invalid template type: ${editor.template}`, {
+      status: 400,
+    });
   }
 
   try {
     const inputPath = path.join(process.cwd(), templatePath);
     const tempDir = path.join(process.cwd(), "temp");
     const outputFile = path.join(tempDir, `${id}.json`);
-    
+
     // Ensure temp directory exists
     await fs.mkdir(tempDir, { recursive: true });
-    
+
     console.log(`Processing template: ${templateKey} from ${inputPath}`);
-    
+
     await saveTemplateStructureToJson(inputPath, outputFile);
     const result = await readTemplateStructureFromJson(outputFile);
     if (!validateJsonStructure(result.items)) {
@@ -67,7 +69,10 @@ export async function GET(
     );
   } catch (error) {
     console.error("Error processing template:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(`Error processing template: ${errorMessage}`, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    return new Response(`Error processing template: ${errorMessage}`, {
+      status: 500,
+    });
   }
 }
