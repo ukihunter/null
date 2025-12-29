@@ -9,6 +9,8 @@ export const getEdditorById = async (id: string) => {
     const editor = await db.edditorSession.findUnique({
       where: { id },
       select: {
+        title: true,
+        description: true,
         templateFiles: {
           select: { content: true },
         },

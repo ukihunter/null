@@ -6,7 +6,7 @@ import { getEdditorById, saveUpdatedCode } from "../actions";
 
 interface UseEditorData {
   id: string;
-  name?: string;
+  title?: string;
   [key: string]: unknown;
 }
 
@@ -32,7 +32,14 @@ export const useEditor = (id: string): UseEditorReturn => {
       setIsLoading(true);
       setError(null);
       const data = await getEdditorById(id);
-      setEditorData(data);
+      setEditorData(
+        data
+          ? {
+              ...data,
+              title: data.title === null ? undefined : data.title,
+            }
+          : null
+      );
       const rawContent = data?.templateFiles?.[0]?.content;
 
       if (typeof rawContent === "string") {
