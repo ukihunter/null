@@ -64,6 +64,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import TemplateNode from "./template-node";
 
 interface TemplateFile {
   filename: string;
@@ -138,6 +139,43 @@ const TemplateFileTree = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <SidebarGroupContent>
+            <Sidebar>
+              {isRootFolder ? (
+                (data as TemplateFolder).items.map((child, index) => (
+                  <TemplateNode
+                    key={index}
+                    item={child}
+                    onFileSelect={onFileSelect}
+                    selectedFile={selectedFile}
+                    level={0}
+                    path=""
+                    onAddFile={onAddFile}
+                    onAddFolder={onAddFolder}
+                    onDeleteFile={onDeleteFile}
+                    onDeleteFolder={onDeleteFolder}
+                    onRenameFile={onRenameFile}
+                    onRenameFolder={onRenameFolder}
+                  />
+                ))
+              ) : (
+                <TemplateNode
+                  key={0}
+                  item={data}
+                  onFileSelect={onFileSelect}
+                  selectedFile={selectedFile}
+                  level={0}
+                  path=""
+                  onAddFile={onAddFile}
+                  onAddFolder={onAddFolder}
+                  onDeleteFile={onDeleteFile}
+                  onDeleteFolder={onDeleteFolder}
+                  onRenameFile={onRenameFile}
+                  onRenameFolder={onRenameFolder}
+                />
+              )}
+            </Sidebar>
+          </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
