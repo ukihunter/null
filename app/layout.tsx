@@ -29,7 +29,7 @@ export default async function RootLayout({
   const session = await auth();
   return (
     <SessionProvider session={session}>
-      <html lang="en" suppressContentEditableWarning>
+      <html lang="en" suppressContentEditableWarning suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >

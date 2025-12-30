@@ -1,6 +1,6 @@
 export const templatePaths = {
   REACTJS: "/null-templte/react-ts",
-  NEXTJS: "/null-templte/nextjs-new",
+  NEXTJS: "/null-templte/nextjs",
   EXPRESS: "/null-templte/express-simple",
   VUE: "/null-templte/vue",
   HONO: "/null-templte/hono-nodejs-starter",

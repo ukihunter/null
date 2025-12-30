@@ -129,22 +129,106 @@ const TemplateNode = ({
             <File className="mr-2 h-4 w-4 shrink-0" />
             <span>{filename}</span>
           </SidebarMenuButton>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className=" h-6 w-6  opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {}}>
+                <Edit3 className="mr-2 h-4 w-4" />
+                Rename File
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => {}} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete File
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className=" h-6 w-6  opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  } else {
+    const folder = item as TemplateFolder;
+    const folderName = folder.folderName;
+    const currentPath = path ? `${path}/${folderName}` : folderName;
+    return (
+      <SidebarMenuItem>
+        <Collapsible
+          open={isOpen}
+          onOpenChange={setIsOpen}
+          className="group/collapsible [& [data-state-open]>div>button>svg:first-child]:rotate-90"
+        >
+          <div className="flex items-center group">
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton className="flex-1">
+                <ChevronRight className="transition-transform" />
+                <Folder className="mr-2 h-4 w-4 shrink-0" />
+                <span>{folderName}</span>
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className=" h-6 w-6  opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {}}>
+                  <FolderPlus className="mr-2 h-4 w-4" />
+                  New File
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {}}>
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  New Folder
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => {}}>
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Rename Folder
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {}}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <CollapsibleContent>
+            <SidebarMenuSub>
+              {folder.items.map((childItem, index) => (
+                <TemplateNode
+                  key={index}
+                  item={childItem}
+                  level={level + 1}
+                  path={currentPath}
+                  onDeleteFile={onDeleteFile}
+                  onDeleteFolder={onDeleteFolder}
+                  onRenameFile={onRenameFile}
+                  onRenameFolder={onRenameFolder}
+                />
+              ))}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </Collapsible>
       </SidebarMenuItem>
     );
   }
-  return <h1>Folder</h1>;
 };
 
 export default TemplateNode;

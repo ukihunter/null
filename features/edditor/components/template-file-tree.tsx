@@ -140,7 +140,7 @@ const TemplateFileTree = ({
             </DropdownMenuContent>
           </DropdownMenu>
           <SidebarGroupContent>
-            <Sidebar>
+            <SidebarMenu>
               {isRootFolder ? (
                 (data as TemplateFolder).items.map((child, index) => (
                   <TemplateNode
@@ -174,7 +174,7 @@ const TemplateFileTree = ({
                   onRenameFolder={onRenameFolder}
                 />
               )}
-            </Sidebar>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
