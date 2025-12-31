@@ -164,7 +164,7 @@ const TemplateNode = ({
         <Collapsible
           open={isOpen}
           onOpenChange={setIsOpen}
-          className="group/collapsible [& [data-state-open]>div>button>svg:first-child]:rotate-90"
+          className="group/collapsible [&_[data-state='open']>div>button>svg:first-child]:rotate-90"
         >
           <div className="flex items-center group">
             <CollapsibleTrigger asChild>

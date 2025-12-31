@@ -66,7 +66,12 @@ export const useEditor = (id: string): UseEditorReturn => {
         );
       }
 
-      toast.success("Template loaded successfully");
+      toast.success("Template loaded successfully", {
+        style: {
+          borderRadius: "8px",
+          color: "#22c55e",
+        },
+      });
     } catch {
       setError("Failed to load editor data");
       toast.error("Failed to load editor data");
