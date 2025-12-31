@@ -6,12 +6,32 @@ import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/features/edditor/hook/useEditor";
 import TemplateFileTree from "@/features/edditor/components/template-file-tree";
+import { useFileExplorer } from "@/features/edditor/hook/useFileExpolrer";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
   const { editorData, templateData } = useEditor(id || "");
-  console.log(templateData);
-  console.log(editorData);
+
+  const {
+    activeFileId,
+    closeAllFiles,
+    openFile,
+    closeFile,
+    editorContent,
+    updateFileContent,
+    handleAddFile,
+    handleAddFolder,
+    handleDeleteFile,
+    handleDeleteFolder,
+    handleRenameFile,
+    handleRenameFolder,
+    openFiles,
+    setTemplateData,
+    setActiveFileId,
+    setEdditorId,
+    setOpenFiles,
+  } = useFileExplorer();
+
   return (
     <div>
       <>
