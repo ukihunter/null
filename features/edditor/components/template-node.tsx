@@ -164,7 +164,7 @@ const TemplateNode = ({
         <Collapsible
           open={isOpen}
           onOpenChange={setIsOpen}
-          className="group/collapsible [&_[data-state='open']>div>button>svg:first-child]:rotate-90"
+          className="group/collapsible [&_button[data-state=open]>svg:first-child]:rotate-90"
         >
           <div className="flex items-center group">
             <CollapsibleTrigger asChild>
@@ -179,7 +179,7 @@ const TemplateNode = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className=" h-6 w-6  opacity-0 group-hover:opacity-100 transition-opacity"
+                  className=" h-6 w-6  opacity-0 group-hover:opacity-100 transition-opacity rotate-90"
                 >
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
@@ -191,7 +191,7 @@ const TemplateNode = ({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {}}>
                   <FilePlus className="mr-2 h-4 w-4" />
-                  New Folder
+                  New File
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => {}}>
