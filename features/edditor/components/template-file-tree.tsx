@@ -212,7 +212,11 @@ interface NewFileDialogProps {
   onCreateFile: (filename: string, fileExtension: string) => void;
 }
 
-function NewFileDialog({ isOpen, onClose, onCreateFile }: NewFileDialogProps) {
+export function NewFileDialog({
+  isOpen,
+  onClose,
+  onCreateFile,
+}: NewFileDialogProps) {
   const [filename, setFilename] = React.useState("");
   const [extension, serExtension] = React.useState("js");
 
@@ -281,7 +285,7 @@ interface NewFolderDialogProps {
   onClose: () => void;
   onCreateFolder: (folderName: string) => void;
 }
-function NewFolderDialog({
+export function NewFolderDialog({
   isOpen,
   onClose,
   onCreateFolder,
@@ -341,7 +345,7 @@ interface RenameFolderDialogProps {
   currentFolderName: string;
   onRenameFolder: (newFolderName: string) => void;
 }
-function RenameFolderDialog({
+export function RenameFolderDialog({
   isOpen,
   onClose,
   currentFolderName,
@@ -411,7 +415,7 @@ interface RenameFileDialogProps {
   currentExtension: string;
   onRenameFile: (newFilename: string, newExtension: string) => void;
 }
-function RenameFileDialog({
+export function RenameFileDialog({
   isOpen,
   onClose,
   currentFilename,
