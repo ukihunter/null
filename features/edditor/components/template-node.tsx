@@ -187,7 +187,7 @@ const TemplateNode = ({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => {}}>
                   <FolderPlus className="mr-2 h-4 w-4" />
-                  New File
+                  New Folder
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {}}>
                   <FilePlus className="mr-2 h-4 w-4" />
