@@ -152,7 +152,11 @@ const TemplateNode = ({
     return (
       <SidebarMenuItem>
         <div className="flex items-center group">
-          <SidebarMenuButton className="flex-1">
+          <SidebarMenuButton
+            className="flex-1"
+            onClick={() => onFileSelect?.(file)}
+            isActive={isSelected}
+          >
             <File className="mr-2 h-4 w-4 shrink-0" />
             <span>{filename}</span>
           </SidebarMenuButton>
@@ -291,6 +295,10 @@ const TemplateNode = ({
                   item={childItem}
                   level={level + 1}
                   path={currentPath}
+                  onFileSelect={onFileSelect}
+                  selectedFile={selectedFile}
+                  onAddFile={onAddFile}
+                  onAddFolder={onAddFolder}
                   onDeleteFile={onDeleteFile}
                   onDeleteFolder={onDeleteFolder}
                   onRenameFile={onRenameFile}
