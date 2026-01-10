@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
 import { TemplateFile } from "@/features/edditor/lib/path-to-jason";
+import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import CodeEditor from "@/features/edditor/components/Code-editor";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
@@ -179,14 +181,12 @@ const Page = () => {
                                   e.stopPropagation();
                                   closeFile(file.id);
                                 }}
-                              >
-                                <X className="h-3 w-3" />
-                              </span>
+                              ></span>
                             </div>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  className="absolute right-1 top-1 rounded p-1 opacity-0 hover:bg-muted/50 group-hover:opacity-100"
+                                  className="absolute right-1 top-1 rounded p-1 opacity-0 hover:bg-red-500 group-hover:opacity-100"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     closeFile(file.id);
@@ -213,7 +213,20 @@ const Page = () => {
                   </Tabs>
                 </div>
                 <div className="flex-1">
-                  {activeFile?.content || "No content available."}
+                  <ResizablePanelGroup
+                    direction="horizontal"
+                    className="h-full"
+                  >
+                    <ResizablePanel defaultSize={isPreviewVisible ? 50 : 100}>
+                      <CodeEditor
+                        activeFile={activeFile}
+                        content={activeFile?.content || ""}
+                        onContentChange={(value) =>
+                          activeFileId && updateFileContent(activeFileId, value)
+                        }
+                      />
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
                 </div>
               </div>
             ) : (
