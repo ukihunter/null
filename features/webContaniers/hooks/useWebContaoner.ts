@@ -1,10 +1,8 @@
-import { useState, useEffectEvent, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 
-import { TemplateFolder } from "@/features/edditor/lib/path-to-jason";
-
 interface UseWebContainerProps {
-  templateData: TemplateFolder | null;
+  templateData?: unknown; // Adjust type as needed
 }
 
 interface UseWebContainerReturn {
@@ -18,22 +16,23 @@ interface UseWebContainerReturn {
 
 export const useWebContainer = ({
   templateData,
-}: UseWebContainerProps): UseWebContainerReturn => {
+}: UseWebContainerProps = {}): UseWebContainerReturn => {
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [instance, setInstance] = useState<WebContainer | null>(null);
 
-  useEffectEvent(() => {
+  useEffect(() => {
     let mounted = true;
 
     async function initializeWebContainer() {
       try {
+        setIsLoading(true);
         const webContainerInstance = await WebContainer.boot();
 
         if (!mounted) return;
         setInstance(webContainerInstance);
-        setIsLoading(true);
+        // You can use templateData here if needed
       } catch (err) {
         console.error("Failed to boot WebContainer:", err);
         if (!mounted) return;
@@ -42,6 +41,7 @@ export const useWebContainer = ({
             ? err
             : new Error("Failed to initialize WebContainer")
         );
+      } finally {
         setIsLoading(false);
       }
     }
@@ -54,7 +54,8 @@ export const useWebContainer = ({
         instance.teardown();
       }
     };
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templateData]);
 
   const writeFileSync = useCallback(
     async (path: string, content: string): Promise<void> => {
@@ -70,9 +71,29 @@ export const useWebContainer = ({
         }
         await instance.fs.writeFile(path, content);
       } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to write file";
         console.error("Failed to write file:", error);
-        throw error;
+        throw new Error(`Failed to write file ${path}: ${errorMessage}`);
       }
-    }
+    },
+    [instance]
   );
+
+  const destroy = useCallback(async (): Promise<void> => {
+    if (instance) {
+      instance.teardown();
+      setInstance(null);
+      setServerUrl(null);
+    }
+  }, [instance]);
+
+  return {
+    destroy,
+    instance,
+    isLoading,
+    serverUrl,
+    writeFileSync,
+    error,
+  };
 };

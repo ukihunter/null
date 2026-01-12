@@ -36,6 +36,7 @@ import { TooltipTrigger } from "@radix-ui/react-tooltip";
 import { TemplateFile } from "@/features/edditor/lib/path-to-jason";
 import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import CodeEditor from "@/features/edditor/components/Code-editor";
+import { useWebContainer } from "@/features/webContaniers/hooks/useWebContaoner";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
@@ -49,8 +50,16 @@ const Page = () => {
     openFiles,
     setActiveFileId,
     setTemplateData,
+    updateFileContent,
   } = useFileExplorer();
 
+  const {
+    serverUrl,
+    isLoading: containerLoading,
+    error: containerError,
+    instance,
+    writeFileSync,
+  } = useWebContainer({ templateData });
   const activeFile = openFiles.find((file) => file.id === activeFileId);
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges);
   const [isPreviewVisible, setIsPreviewVisible] = React.useState(true);
