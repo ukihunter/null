@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
+import { TemplateFolder } from "@/features/edditor/lib/path-to-jason";
 
 interface UseWebContainerProps {
-  templateData?: unknown; // Adjust type as needed
+  templateData: TemplateFolder;
 }
 
 interface UseWebContainerReturn {
@@ -14,9 +15,28 @@ interface UseWebContainerReturn {
   destroy: () => Promise<void>;
 }
 
+// Global singleton to prevent multiple instances
+let webContainerInstance: WebContainer | null = null;
+let bootPromise: Promise<WebContainer> | null = null;
+
+async function getWebContainerInstance(): Promise<WebContainer> {
+  if (webContainerInstance) {
+    return webContainerInstance;
+  }
+
+  if (bootPromise) {
+    return bootPromise;
+  }
+
+  bootPromise = WebContainer.boot();
+  webContainerInstance = await bootPromise;
+  bootPromise = null;
+  return webContainerInstance;
+}
+
 export const useWebContainer = ({
   templateData,
-}: UseWebContainerProps = {}): UseWebContainerReturn => {
+}: UseWebContainerProps): UseWebContainerReturn => {
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
@@ -28,11 +48,10 @@ export const useWebContainer = ({
     async function initializeWebContainer() {
       try {
         setIsLoading(true);
-        const webContainerInstance = await WebContainer.boot();
+        const containerInstance = await getWebContainerInstance();
 
         if (!mounted) return;
-        setInstance(webContainerInstance);
-        // You can use templateData here if needed
+        setInstance(containerInstance);
       } catch (err) {
         console.error("Failed to boot WebContainer:", err);
         if (!mounted) return;
@@ -42,7 +61,9 @@ export const useWebContainer = ({
             : new Error("Failed to initialize WebContainer")
         );
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -50,12 +71,8 @@ export const useWebContainer = ({
 
     return () => {
       mounted = false;
-      if (instance) {
-        instance.teardown();
-      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateData]);
+  }, []);
 
   const writeFileSync = useCallback(
     async (path: string, content: string): Promise<void> => {
@@ -81,12 +98,13 @@ export const useWebContainer = ({
   );
 
   const destroy = useCallback(async (): Promise<void> => {
-    if (instance) {
-      instance.teardown();
+    if (webContainerInstance) {
+      await webContainerInstance.teardown();
+      webContainerInstance = null;
       setInstance(null);
       setServerUrl(null);
     }
-  }, [instance]);
+  }, []);
 
   return {
     destroy,

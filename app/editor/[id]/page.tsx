@@ -34,9 +34,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
 import { TemplateFile } from "@/features/edditor/lib/path-to-jason";
-import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import CodeEditor from "@/features/edditor/components/Code-editor";
 import { useWebContainer } from "@/features/webContaniers/hooks/useWebContaoner";
+import WebContainerPreview from "@/features/webContaniers/components/webContainer-priview";
+
+import LoadingStep from "@/components/ui/loader";
+//import { error } from "console";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
@@ -59,11 +67,12 @@ const Page = () => {
     error: containerError,
     instance,
     writeFileSync,
-  } = useWebContainer({ templateData });
+  } = useWebContainer({ templateData: templateData! });
   const activeFile = openFiles.find((file) => file.id === activeFileId);
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges);
   const [isPreviewVisible, setIsPreviewVisible] = React.useState(true);
   const handleFileSelect = (file: TemplateFile) => {
+    console.log("Handlepath", file);
     openFile(file);
   };
 
@@ -72,6 +81,54 @@ const Page = () => {
       setTemplateData(templateData);
     }
   }, [templateData, openFiles.length, setTemplateData]);
+
+  if (containerError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-semibold text-red-600 mb-2">
+          Something went Wrong
+        </h2>
+        <p className="text-gray-600 mb-4 ">
+          {typeof containerError === "string"
+            ? containerError
+            : containerError?.message}
+        </p>
+        <Button onClick={() => window.location.reload()} variant="destructive">
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
+  if (containerLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
+        <div className="w-full max-w-md p-6 rounded-lg shadow-sm border">
+          <h2 className="text-xl font-semibold mb-6 text-center">
+            Loading edditor
+          </h2>
+          <div className="mb-8">
+            <LoadingStep
+              currentStep={1}
+              step={1}
+              label="Initializing WebContainer"
+            />
+            <LoadingStep
+              currentStep={2}
+              step={2}
+              label="Setting up file system"
+            />
+            <LoadingStep
+              currentStep={3}
+              step={3}
+              label="Starting development server"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -235,6 +292,22 @@ const Page = () => {
                         }
                       />
                     </ResizablePanel>
+                    {isPreviewVisible && (
+                      <>
+                        <ResizableHandle />
+                        <ResizablePanel defaultSize={50}>
+                          <WebContainerPreview
+                            templateData={templateData!}
+                            instance={instance}
+                            writeFileSync={writeFileSync}
+                            isLoading={containerLoading}
+                            error={containerError}
+                            serverUrl={serverUrl}
+                            forceResetup={false}
+                          />
+                        </ResizablePanel>
+                      </>
+                    )}
                   </ResizablePanelGroup>
                 </div>
               </div>
