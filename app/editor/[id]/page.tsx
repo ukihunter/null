@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -33,7 +33,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TooltipTrigger } from "@radix-ui/react-tooltip";
-import { TemplateFile } from "@/features/edditor/lib/path-to-jason";
+import {
+  TemplateFile,
+  TemplateFolder,
+} from "@/features/edditor/lib/path-to-jason";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -44,11 +47,15 @@ import { useWebContainer } from "@/features/webContaniers/hooks/useWebContaoner"
 import WebContainerPreview from "@/features/webContaniers/components/webContainer-priview";
 
 import LoadingStep from "@/components/ui/loader";
+import { toast } from "sonner";
+import { findFilePath } from "@/features/edditor/lib";
 //import { error } from "console";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
-  const { editorData, templateData } = useEditor(id || "");
+  const { editorData, templateData, error, saveTemplateData } = useEditor(
+    id || ""
+  );
 
   const {
     activeFileId,
@@ -59,6 +66,13 @@ const Page = () => {
     setActiveFileId,
     setTemplateData,
     updateFileContent,
+    setOpenFiles,
+    handleAddFile,
+    handleAddFolder,
+    handleDeleteFile,
+    handleDeleteFolder,
+    handleRenameFile,
+    handleRenameFolder,
   } = useFileExplorer();
 
   const {
@@ -68,13 +82,77 @@ const Page = () => {
     instance,
     writeFileSync,
   } = useWebContainer({ templateData: templateData! });
+  const lastSyncedContent = useRef<Map<string, string>>(new Map());
+  const [previewKey, setPreviewKey] = React.useState(0);
+
+  // Create wrapper functions that pass saveTemplateData
+  const wrappedHandleAddFile = useCallback(
+    (newFile: TemplateFile, parentPath: string) => {
+      return handleAddFile(
+        newFile,
+        parentPath,
+        writeFileSync!,
+        instance,
+        saveTemplateData
+      );
+    },
+    [handleAddFile, writeFileSync, instance, saveTemplateData]
+  );
+
+  const wrappedHandleAddFolder = useCallback(
+    (newFolder: TemplateFolder, parentPath: string) => {
+      return handleAddFolder(newFolder, parentPath, instance, saveTemplateData);
+    },
+    [handleAddFolder, instance, saveTemplateData]
+  );
+
+  const wrappedHandleDeleteFile = useCallback(
+    (file: TemplateFile, parentPath: string) => {
+      return handleDeleteFile(file, parentPath, saveTemplateData);
+    },
+    [handleDeleteFile, saveTemplateData]
+  );
+
+  const wrappedHandleDeleteFolder = useCallback(
+    (folder: TemplateFolder, parentPath: string) => {
+      return handleDeleteFolder(folder, parentPath, saveTemplateData);
+    },
+    [handleDeleteFolder, saveTemplateData]
+  );
+
+  const wrappedHandleRenameFile = useCallback(
+    (
+      file: TemplateFile,
+      newFilename: string,
+      newExtension: string,
+      parentPath: string
+    ) => {
+      return handleRenameFile(
+        file,
+        newFilename,
+        newExtension,
+        parentPath,
+        saveTemplateData
+      );
+    },
+    [handleRenameFile, saveTemplateData]
+  );
+
+  const wrappedHandleRenameFolder = useCallback(
+    (folder: TemplateFolder, newFolderName: string, parentPath: string) => {
+      return handleRenameFolder(
+        folder,
+        newFolderName,
+        parentPath,
+        saveTemplateData
+      );
+    },
+    [handleRenameFolder, saveTemplateData]
+  );
+
   const activeFile = openFiles.find((file) => file.id === activeFileId);
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges);
   const [isPreviewVisible, setIsPreviewVisible] = React.useState(true);
-  const handleFileSelect = (file: TemplateFile) => {
-    console.log("Handlepath", file);
-    openFile(file);
-  };
 
   useEffect(() => {
     if (templateData && !openFiles.length) {
@@ -82,20 +160,167 @@ const Page = () => {
     }
   }, [templateData, openFiles.length, setTemplateData]);
 
-  if (containerError) {
+  const handleFileSelect = (file: TemplateFile) => {
+    console.log("Handlepath", file);
+    openFile(file);
+  };
+
+  const handleSave = useCallback(
+    async (fileId?: string) => {
+      const targetFileId = fileId || activeFileId;
+      if (!targetFileId) {
+        console.log("Save failed: No target file ID");
+        return;
+      }
+
+      const fileToSave = openFiles.find((f) => f.id === targetFileId);
+      if (!fileToSave) {
+        console.log("Save failed: File not found in open files");
+        return;
+      }
+
+      const latestTemplateData = useFileExplorer.getState().templateData;
+      if (!latestTemplateData) {
+        console.log("Save failed: No template data");
+        return;
+      }
+
+      console.log(
+        "Starting save for:",
+        fileToSave.filename,
+        fileToSave.fileExtension
+      );
+
+      try {
+        const filePath = findFilePath(fileToSave, latestTemplateData);
+        if (!filePath) {
+          toast.error(
+            `Could not find path for file: ${fileToSave.filename}.${fileToSave.fileExtension}`
+          );
+          return;
+        }
+
+        // Update file content in template data (clone for immutability)
+        const updatedTemplateData = JSON.parse(
+          JSON.stringify(latestTemplateData)
+        );
+        const updateFileContent = (
+          items: (TemplateFile | TemplateFolder)[]
+        ): (TemplateFile | TemplateFolder)[] =>
+          items.map((item) => {
+            if ("folderName" in item) {
+              return { ...item, items: updateFileContent(item.items) };
+            } else if (
+              item.filename === fileToSave.filename &&
+              item.fileExtension === fileToSave.fileExtension
+            ) {
+              return { ...item, content: fileToSave.content };
+            }
+            return item;
+          });
+        updatedTemplateData.items = updateFileContent(
+          updatedTemplateData.items
+        );
+
+        // Sync with WebContainer
+        if (writeFileSync) {
+          await writeFileSync(filePath, fileToSave.content);
+          lastSyncedContent.current.set(fileToSave.id, fileToSave.content);
+          if (instance && instance.fs) {
+            await instance.fs.writeFile(filePath, fileToSave.content);
+          }
+        }
+
+        // Use saveTemplateData to persist changes
+        console.log("Saving to database...");
+        await saveTemplateData(updatedTemplateData);
+        console.log("Successfully saved to database");
+        setTemplateData(updatedTemplateData);
+
+        // Reload iframe for static files (HTML, CSS) after save
+        if (filePath.match(/\.(html|css)$/)) {
+          setPreviewKey((prev) => prev + 1);
+        }
+
+        // Update open files
+        const updatedOpenFiles = openFiles.map((f) =>
+          f.id === targetFileId
+            ? {
+                ...f,
+                content: fileToSave.content,
+                originalContent: fileToSave.content,
+                hasUnsavedChanges: false,
+              }
+            : f
+        );
+        setOpenFiles(updatedOpenFiles);
+
+        toast.success(
+          `Saved ${fileToSave.filename}.${fileToSave.fileExtension}`
+        );
+      } catch (error) {
+        console.error("Error saving file:", error);
+        toast.error(
+          `Failed to save ${fileToSave.filename}.${fileToSave.fileExtension}`
+        );
+        throw error;
+      }
+    },
+    [
+      activeFileId,
+      openFiles,
+      writeFileSync,
+      instance,
+      saveTemplateData,
+      setTemplateData,
+      setOpenFiles,
+    ]
+  );
+
+  const handleSaveAll = async () => {
+    const unsavedFiles = openFiles.filter((f) => f.hasUnsavedChanges);
+
+    if (unsavedFiles.length === 0) {
+      toast.info("No unsaved changes");
+      return;
+    }
+
+    try {
+      await Promise.all(unsavedFiles.map((f) => handleSave(f.id)));
+      toast.success(`Saved ${unsavedFiles.length} file(s)`);
+    } catch {
+      toast.error("Failed to save some files");
+    }
+  };
+
+  // Add event to save file by click ctrl + s
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSave]);
+
+  // Error state
+  if (error || containerError) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-4">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
         <h2 className="text-xl font-semibold text-red-600 mb-2">
-          Something went Wrong
+          Something went wrong
         </h2>
-        <p className="text-gray-600 mb-4 ">
-          {typeof containerError === "string"
-            ? containerError
-            : containerError?.message}
+        <p className="text-gray-600 mb-4">
+          {error ||
+            (typeof containerError === "string"
+              ? containerError
+              : containerError?.message)}
         </p>
         <Button onClick={() => window.location.reload()} variant="destructive">
-          Try again
+          Try Again
         </Button>
       </div>
     );
@@ -137,6 +362,13 @@ const Page = () => {
           data={templateData!}
           onFileSelect={handleFileSelect}
           selectedFile={activeFile}
+          title="file Explore"
+          onAddFile={wrappedHandleAddFile}
+          onAddFolder={wrappedHandleAddFolder}
+          onDeleteFile={wrappedHandleDeleteFile}
+          onDeleteFolder={wrappedHandleDeleteFolder}
+          onRenameFile={wrappedHandleRenameFile}
+          onRenameFolder={wrappedHandleRenameFolder}
         />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -170,7 +402,7 @@ const Page = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => closeAllFiles()}
+                    onClick={() => handleSaveAll()}
                     disabled={!hasUnsavedChanges}
                   >
                     <BookmarkPlus className="size-4" />
@@ -184,8 +416,8 @@ const Page = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => closeAllFiles()}
-                    disabled={!hasUnsavedChanges}
+                    onClick={() => toast.info("AI feature coming soon!")}
+                    disabled={false}
                   >
                     <BotIcon className="size-4" />
                   </Button>
@@ -287,9 +519,30 @@ const Page = () => {
                       <CodeEditor
                         activeFile={activeFile}
                         content={activeFile?.content || ""}
-                        onContentChange={(value) =>
-                          activeFileId && updateFileContent(activeFileId, value)
-                        }
+                        onContentChange={async (value) => {
+                          if (activeFileId && activeFile) {
+                            updateFileContent(activeFileId, value);
+
+                            // Sync changes to WebContainer in real-time (for dev server HMR)
+                            if (writeFileSync && templateData && instance) {
+                              const filePath = findFilePath(
+                                activeFile,
+                                templateData
+                              );
+                              if (filePath) {
+                                try {
+                                  await writeFileSync(filePath, value);
+                                  await instance.fs.writeFile(filePath, value);
+                                } catch (error) {
+                                  console.error(
+                                    "Failed to sync file to WebContainer:",
+                                    error
+                                  );
+                                }
+                              }
+                            }
+                          }
+                        }}
                       />
                     </ResizablePanel>
                     {isPreviewVisible && (
@@ -304,6 +557,7 @@ const Page = () => {
                             error={containerError}
                             serverUrl={serverUrl}
                             forceResetup={false}
+                            previewKey={previewKey}
                           />
                         </ResizablePanel>
                       </>

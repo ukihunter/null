@@ -32,14 +32,32 @@ export const saveUpdatedCode = async (
   if (!user) return null;
 
   try {
-    const updatedProject = await db.templatesFile.upsert({
-      where: { id: edditorSessionId },
-      update: { content: JSON.stringify(data) },
-      create: {
-        edditorSessionId,
-        content: JSON.stringify(data),
-      },
+    console.log("Saving to database for session:", edditorSessionId);
+
+    // Find existing template file for this session
+    const existing = await db.templatesFile.findFirst({
+      where: { edditorSessionId },
     });
+
+    let updatedProject;
+    if (existing) {
+      // Update existing record
+      updatedProject = await db.templatesFile.update({
+        where: { id: existing.id },
+        data: { content: JSON.stringify(data) },
+      });
+      console.log("Database update successful");
+    } else {
+      // Create new record
+      updatedProject = await db.templatesFile.create({
+        data: {
+          edditorSessionId,
+          content: JSON.stringify(data),
+        },
+      });
+      console.log("Database create successful");
+    }
+
     return updatedProject;
   } catch (error) {
     console.error("Error saving updated code:", error);

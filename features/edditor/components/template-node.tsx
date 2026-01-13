@@ -69,6 +69,7 @@ import { on } from "events";
 import {
   NewFileDialog,
   NewFolderDialog,
+  RenameFileDialog,
   RenameFolderDialog,
 } from "./template-file-tree";
 
@@ -187,6 +188,38 @@ const TemplateNode = ({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        <RenameFileDialog
+          isOpen={isRenameDialogOpen}
+          onClose={() => setIsRenameDialogOpen(false)}
+          currentFilename={file.filename}
+          currentExtension={file.fileExtension}
+          onRenameFile={handelRenameSubmit}
+        />
+        <AlertDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Are you sure you want to delete {filename} This can't be undone?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarMenuItem>
     );
   } else {
@@ -225,6 +258,7 @@ const TemplateNode = ({
         };
         onAddFile(newFile, currentPath);
       }
+      setIsNewFileDialogOpen(false);
     };
 
     const handelCreateFolder = (folderName: string) => {
@@ -235,6 +269,7 @@ const TemplateNode = ({
         };
         onAddFolder(newFolder, currentPath);
       }
+      setIsNewFolderDialogOpen(false);
     };
 
     return (

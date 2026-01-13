@@ -9,7 +9,16 @@ import { transformToWebContainerFormat } from "../hooks/transfomer";
 import { se } from "date-fns/locale";
 import { start } from "repl";
 import { set, url } from "zod";
-import TerminalComponent from "./termianl";
+import dynamic from "next/dynamic";
+
+const TerminalComponent = dynamic(() => import("./termianl"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center bg-black text-white">
+      <Loader2 className="h-6 w-6 animate-spin" />
+    </div>
+  ),
+});
 interface WebContainerPreviewProps {
   templateData: TemplateFolder;
   serverUrl: string | null;
@@ -18,6 +27,7 @@ interface WebContainerPreviewProps {
   instance: WebContainer | null;
   writeFileSync: (path: string, content: string) => Promise<void>;
   forceResetup?: boolean;
+  previewKey?: number;
 }
 
 const WebContainerPreview = ({
@@ -28,6 +38,7 @@ const WebContainerPreview = ({
   instance,
   writeFileSync,
   forceResetup,
+  previewKey = 0,
 }: WebContainerPreviewProps) => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [loadingState, setLoadingState] = useState({
@@ -44,6 +55,7 @@ const WebContainerPreview = ({
   const [isSetupInProgress, setIsSetupInProgress] = useState(false);
 
   const terminalRef = useRef<any>(null);
+  const serverProcessRef = useRef<any>(null);
 
   useEffect(() => {
     if (forceResetup) {
@@ -78,29 +90,83 @@ const WebContainerPreview = ({
                 " Reconnecting to existing WebContainer session...\r\n"
               );
             }
-          }
-          instance.on("server-ready", (port: number, url: string) => {
-            console.log(
-              `Reconncted to the server on port ${port} at URL: ${url}`
-            );
-            if (terminalRef.current?.writeToTerminal) {
-              terminalRef.current.writeToTerminal(
-                ` Reconnected to server at ${url}\r\n`
-              );
+
+            // Check if server is already running
+            if (serverUrl) {
+              if (terminalRef.current?.writeToTerminal) {
+                terminalRef.current.writeToTerminal(
+                  ` Server already running at ${serverUrl}\r\n`
+                );
+              }
+              setPreviewUrl(serverUrl);
+              setCurrentStep(4);
+              setLoadingState((prev) => ({
+                ...prev,
+                starting: false,
+                ready: true,
+              }));
+              setIsSetupComplete(true);
+              setIsSetupInProgress(false);
+              return;
             }
 
-            setPreviewUrl(url);
-            setLoadingState((prev) => ({
-              ...prev,
-              starting: false,
-              ready: true,
-            }));
-            setIsSetupComplete(true);
-            setIsSetupInProgress(false);
-          });
-          setCurrentStep(4);
-          setLoadingState((prev) => ({ ...prev, starting: true }));
-          return;
+            // Set up server-ready listener
+            instance.on("server-ready", (port: number, url: string) => {
+              console.log(
+                `Reconnected to the server on port ${port} at URL: ${url}`
+              );
+              if (terminalRef.current?.writeToTerminal) {
+                terminalRef.current.writeToTerminal(
+                  ` Reconnected to server at ${url}\r\n`
+                );
+              }
+
+              setPreviewUrl(url);
+              setLoadingState((prev) => ({
+                ...prev,
+                starting: false,
+                ready: true,
+              }));
+              setIsSetupComplete(true);
+              setIsSetupInProgress(false);
+            });
+
+            setCurrentStep(4);
+            setLoadingState((prev) => ({ ...prev, starting: true }));
+
+            // Kill existing server process if running
+            if (serverProcessRef.current) {
+              try {
+                serverProcessRef.current.kill();
+                if (terminalRef.current?.writeToTerminal) {
+                  terminalRef.current.writeToTerminal(
+                    " Stopping existing server...\r\n"
+                  );
+                }
+              } catch (err) {
+                console.log("No existing server to kill");
+              }
+            }
+
+            // Restart the dev server
+            if (terminalRef.current?.writeToTerminal) {
+              terminalRef.current.writeToTerminal(
+                " Starting development server...\r\n"
+              );
+            }
+            const startProcess = await instance.spawn("npm", ["run", "start"]);
+            serverProcessRef.current = startProcess;
+            startProcess.output.pipeTo(
+              new WritableStream({
+                write(data) {
+                  if (terminalRef.current?.writeToTerminal) {
+                    terminalRef.current.writeToTerminal(data);
+                  }
+                },
+              })
+            );
+            return;
+          }
         } catch (err) {}
         //setup 1:transform data
         setLoadingState((prev) => ({ ...prev, transforming: true }));
@@ -180,6 +246,7 @@ const WebContainerPreview = ({
         //terminal relate stuff
         setCurrentStep(4);
         const startProcess = await instance.spawn("npm", ["run", "start"]);
+        serverProcessRef.current = startProcess;
 
         instance.on("server-ready", (port: number, url: string) => {
           console.log(`Server is running on port ${port} at URL: ${url}`);
@@ -287,7 +354,7 @@ const WebContainerPreview = ({
     <div className="h-full w-full flex flex-col">
       {!previewUrl ? (
         <div className="h-full flex flex-col">
-          <div className="h-full max-w-md p-6 m-5 rounded-lg bg-white dark:bg-zinc-800 shadow-sm mx-auto">
+          <div className="max-w-md p-6 m-5 rounded-lg bg-white dark:bg-zinc-800 shadow-sm mx-auto">
             <h3 className="text-lg font-medium mb-4">
               setting up your Environment
             </h3>
@@ -315,7 +382,7 @@ const WebContainerPreview = ({
               </div>
             </div>
           </div>
-          <div className="flex-1 min-h-[200px] p-4">
+          <div className="flex-1 min-h-[300px] p-4">
             <TerminalComponent
               ref={terminalRef}
               webContainerInstance={instance}
@@ -328,6 +395,7 @@ const WebContainerPreview = ({
         <div className="h-full flex flex-col">
           <div className="flex-1">
             <iframe
+              key={previewKey}
               src={previewUrl}
               className="w-full h-full border-0"
               title="WebContainer Preview"
