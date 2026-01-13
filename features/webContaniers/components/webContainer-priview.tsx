@@ -75,7 +75,7 @@ const WebContainerPreview = ({
           if (packaejsonExists) {
             if (terminalRef.current?.writeToTerminal) {
               terminalRef.current.writeToTerminal(
-                "🔄 Reconnecting to existing WebContainer session...\r\n"
+                " Reconnecting to existing WebContainer session...\r\n"
               );
             }
           }
@@ -85,7 +85,7 @@ const WebContainerPreview = ({
             );
             if (terminalRef.current?.writeToTerminal) {
               terminalRef.current.writeToTerminal(
-                `🌐 Reconnected to server at ${url}\r\n`
+                ` Reconnected to server at ${url}\r\n`
               );
             }
 
@@ -315,7 +315,7 @@ const WebContainerPreview = ({
               </div>
             </div>
           </div>
-          <div className="flex-1 p-4 ">
+          <div className="flex-1 min-h-[200px] p-4">
             <TerminalComponent
               ref={terminalRef}
               webContainerInstance={instance}

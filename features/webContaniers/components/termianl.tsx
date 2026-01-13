@@ -360,7 +360,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
     const clearTerminal = useCallback(() => {
       if (term.current) {
         term.current.clear();
-        term.current.writeln("🚀 WebContainer Terminal");
+        term.current.writeln(" WebContainer Terminal");
         writePrompt();
       }
     }, [writePrompt]);
