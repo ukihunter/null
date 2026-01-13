@@ -71,6 +71,7 @@ import {
   CollaborationPanel,
   AccountPanel,
   SettingsPanel,
+  ExplorerPanel,
 } from "@/features/edditor/components/activity-panels";
 //import { error } from "console";
 
@@ -434,11 +435,10 @@ const Page = () => {
             />
           </ActivityBar>
           {activeView === "explorer" && (
-            <TemplateFileTree
+            <ExplorerPanel
               data={templateData!}
               onFileSelect={handleFileSelect}
               selectedFile={activeFile}
-              title="file Explore"
               onAddFile={wrappedHandleAddFile}
               onAddFolder={wrappedHandleAddFolder}
               onDeleteFile={wrappedHandleDeleteFile}
