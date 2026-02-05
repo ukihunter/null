@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "avatars.githubusercontent.com",
       },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com", // <-- Added for Google user images
+      },
     ],
   },
   async headers() {
