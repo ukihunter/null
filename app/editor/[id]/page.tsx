@@ -73,12 +73,13 @@ import {
   SettingsPanel,
   ExplorerPanel,
 } from "@/features/edditor/components/activity-panels";
+import ToggelAI from "@/features/edditor/components/toggel-ai";
 //import { error } from "console";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
   const { editorData, templateData, error, saveTemplateData } = useEditor(
-    id || ""
+    id || "",
   );
 
   const {
@@ -118,31 +119,31 @@ const Page = () => {
         parentPath,
         writeFileSync!,
         instance,
-        saveTemplateData
+        saveTemplateData,
       );
     },
-    [handleAddFile, writeFileSync, instance, saveTemplateData]
+    [handleAddFile, writeFileSync, instance, saveTemplateData],
   );
 
   const wrappedHandleAddFolder = useCallback(
     (newFolder: TemplateFolder, parentPath: string) => {
       return handleAddFolder(newFolder, parentPath, instance, saveTemplateData);
     },
-    [handleAddFolder, instance, saveTemplateData]
+    [handleAddFolder, instance, saveTemplateData],
   );
 
   const wrappedHandleDeleteFile = useCallback(
     (file: TemplateFile, parentPath: string) => {
       return handleDeleteFile(file, parentPath, saveTemplateData);
     },
-    [handleDeleteFile, saveTemplateData]
+    [handleDeleteFile, saveTemplateData],
   );
 
   const wrappedHandleDeleteFolder = useCallback(
     (folder: TemplateFolder, parentPath: string) => {
       return handleDeleteFolder(folder, parentPath, saveTemplateData);
     },
-    [handleDeleteFolder, saveTemplateData]
+    [handleDeleteFolder, saveTemplateData],
   );
 
   const wrappedHandleRenameFile = useCallback(
@@ -150,17 +151,17 @@ const Page = () => {
       file: TemplateFile,
       newFilename: string,
       newExtension: string,
-      parentPath: string
+      parentPath: string,
     ) => {
       return handleRenameFile(
         file,
         newFilename,
         newExtension,
         parentPath,
-        saveTemplateData
+        saveTemplateData,
       );
     },
-    [handleRenameFile, saveTemplateData]
+    [handleRenameFile, saveTemplateData],
   );
 
   const wrappedHandleRenameFolder = useCallback(
@@ -169,10 +170,10 @@ const Page = () => {
         folder,
         newFolderName,
         parentPath,
-        saveTemplateData
+        saveTemplateData,
       );
     },
-    [handleRenameFolder, saveTemplateData]
+    [handleRenameFolder, saveTemplateData],
   );
 
   const activeFile = openFiles.find((file) => file.id === activeFileId);
@@ -213,24 +214,24 @@ const Page = () => {
       console.log(
         "Starting save for:",
         fileToSave.filename,
-        fileToSave.fileExtension
+        fileToSave.fileExtension,
       );
 
       try {
         const filePath = findFilePath(fileToSave, latestTemplateData);
         if (!filePath) {
           toast.error(
-            `Could not find path for file: ${fileToSave.filename}.${fileToSave.fileExtension}`
+            `Could not find path for file: ${fileToSave.filename}.${fileToSave.fileExtension}`,
           );
           return;
         }
 
         // Update file content in template data (clone for immutability)
         const updatedTemplateData = JSON.parse(
-          JSON.stringify(latestTemplateData)
+          JSON.stringify(latestTemplateData),
         );
         const updateFileContent = (
-          items: (TemplateFile | TemplateFolder)[]
+          items: (TemplateFile | TemplateFolder)[],
         ): (TemplateFile | TemplateFolder)[] =>
           items.map((item) => {
             if ("folderName" in item) {
@@ -244,7 +245,7 @@ const Page = () => {
             return item;
           });
         updatedTemplateData.items = updateFileContent(
-          updatedTemplateData.items
+          updatedTemplateData.items,
         );
 
         // Sync with WebContainer
@@ -276,17 +277,17 @@ const Page = () => {
                 originalContent: fileToSave.content,
                 hasUnsavedChanges: false,
               }
-            : f
+            : f,
         );
         setOpenFiles(updatedOpenFiles);
 
         toast.success(
-          `Saved ${fileToSave.filename}.${fileToSave.fileExtension}`
+          `Saved ${fileToSave.filename}.${fileToSave.fileExtension}`,
         );
       } catch (error) {
         console.error("Error saving file:", error);
         toast.error(
-          `Failed to save ${fileToSave.filename}.${fileToSave.fileExtension}`
+          `Failed to save ${fileToSave.filename}.${fileToSave.fileExtension}`,
         );
         throw error;
       }
@@ -299,7 +300,7 @@ const Page = () => {
       saveTemplateData,
       setTemplateData,
       setOpenFiles,
-    ]
+    ],
   );
 
   const handleSaveAll = async () => {
@@ -495,7 +496,7 @@ const Page = () => {
                   </TooltipTrigger>
                   <TooltipContent>Save All (CTRL+SHIFT+S)</TooltipContent>
                 </Tooltip>
-                <Tooltip>
+                {/*    <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       size="sm"
@@ -507,7 +508,12 @@ const Page = () => {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Hunter AI</TooltipContent>
-                </Tooltip>
+                </Tooltip> */}
+                <ToggelAI
+                  isEnabled={false}
+                  onToggle={() => toast.info("AI feature coming soon!")}
+                  suggestionLoading={false}
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="outline">
@@ -611,19 +617,19 @@ const Page = () => {
                               if (writeFileSync && templateData && instance) {
                                 const filePath = findFilePath(
                                   activeFile,
-                                  templateData
+                                  templateData,
                                 );
                                 if (filePath) {
                                   try {
                                     await writeFileSync(filePath, value);
                                     await instance.fs.writeFile(
                                       filePath,
-                                      value
+                                      value,
                                     );
                                   } catch (error) {
                                     console.error(
                                       "Failed to sync file to WebContainer:",
-                                      error
+                                      error,
                                     );
                                   }
                                 }
