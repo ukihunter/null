@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { use, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -74,13 +74,16 @@ import {
   ExplorerPanel,
 } from "@/features/edditor/components/activity-panels";
 import ToggelAI from "@/features/edditor/components/toggel-ai";
+import { useAISuggestion } from "@/features/ai-chat/hooks/useAiSuggesion";
+import { editor } from "monaco-editor";
 //import { error } from "console";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
-  const { editorData, templateData, error, saveTemplateData } = useEditor(
-    id || "",
-  );
+  const { editorData, templateData, error, isLoading, saveTemplateData } =
+    useEditor(id ?? "");
+
+  const aiSuggestion = useAISuggestion();
 
   const {
     activeFileId,
@@ -510,9 +513,9 @@ const Page = () => {
                   <TooltipContent>Hunter AI</TooltipContent>
                 </Tooltip> */}
                 <ToggelAI
-                  isEnabled={false}
-                  onToggle={() => toast.info("AI feature coming soon!")}
-                  suggestionLoading={false}
+                  isEnabled={aiSuggestion.isEnabled}
+                  onToggle={aiSuggestion.toggleEnabled}
+                  suggestionLoading={aiSuggestion.isLoading}
                 />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -636,6 +639,15 @@ const Page = () => {
                               }
                             }
                           }}
+                          suggestion={aiSuggestion.suggestion}
+                          suggestionLoading={aiSuggestion.isLoading}
+                          suggestionPosition={aiSuggestion.position}
+                          onAcceptSuggestion={(editor, monaco) =>
+                            aiSuggestion.acceptSuggestion(editor, monaco)
+                          }
+                          onRejectSuggestion={(type, editor) =>
+                            aiSuggestion.rejectSuggestion(type, editor)
+                          }
                         />
                       </ResizablePanel>
                       {isPreviewVisible && (
