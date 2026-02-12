@@ -645,6 +645,9 @@ const Page = () => {
                           onAcceptSuggestion={(editor, monaco) =>
                             aiSuggestion.acceptSuggestion(editor, monaco)
                           }
+                          onTriggerSuggestion={(type, editor) =>
+                            aiSuggestion.fetchSuggestion(type, editor)
+                          }
                           onRejectSuggestion={(type, editor) =>
                             aiSuggestion.rejectSuggestion(type, editor)
                           }

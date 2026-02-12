@@ -5,8 +5,8 @@ interface CodeSuggestionRequest {
   fileContent: string;
   cursorLine: number;
   cursorColumn: number;
-  suggesionType: string;
-  filleName?: string;
+  suggestionType: string; // Fixed typo: was 'suggesionType'
+  fileName?: string; // Fixed typo: was 'filleName'
 }
 
 interface CodeContext {
@@ -29,12 +29,12 @@ export async function POST(request: NextRequest) {
   try {
     const body: CodeSuggestionRequest = await request.json();
 
-    const { fileContent, cursorColumn, cursorLine, suggesionType, filleName } =
+    const { fileContent, cursorColumn, cursorLine, suggestionType, fileName } =
       body;
 
     //validate input
 
-    if (!fileContent || cursorLine < 0 || cursorColumn < 0 || !suggesionType) {
+    if (!fileContent || cursorLine < 0 || cursorColumn < 0 || !suggestionType) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
@@ -42,11 +42,11 @@ export async function POST(request: NextRequest) {
       fileContent,
       cursorLine,
       cursorColumn,
-      filleName,
+      fileName,
     );
 
     // Build ai prompt
-    const prompt = buildPrompt(context, suggesionType);
+    const prompt = buildPrompt(context, suggestionType);
 
     // Call AI model
     const suggestion = await generateSuggestion(prompt);
@@ -149,12 +149,12 @@ async function generateSuggestion(prompt: string): Promise<string> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "codellama:latest",
+        model: "codellama:7b",
         prompt,
         stream: false,
         options: {
           temperature: 0.7,
-          max_tokens: 300,
+          num_predict: 300,
         },
       }),
     });
