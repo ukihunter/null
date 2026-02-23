@@ -322,9 +322,10 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
   >("chat");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
-  const [showSettings, setShowSettings] = useState(false);
   const [autoSave, setAutoSave] = useState(true);
   const [streamResponse, setStreamResponse] = useState(true);
+  const [aiProvider, setAiProvider] = useState<"gemini" | "ollama">("gemini");
+  const [aiModel, setAiModel] = useState<string>("gemini-2.5-flash");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -404,10 +405,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     return "text";
   };
 
-  const detectFileType = (
-    fileName: string,
-    content: string,
-  ): FileAttachment["type"] => {
+  const detectFileType = (fileName: string): FileAttachment["type"] => {
     // Only allow code files
     const ext = fileName.split(".").pop()?.toLowerCase();
     if (
@@ -444,7 +442,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     mimeType?: string,
   ) => {
     const language = detectLanguage(fileName, content);
-    const type = detectFileType(fileName, content);
+    const type = detectFileType(fileName);
     if (type !== "code") return; // Only allow code files
     const newFile: FileAttachment = {
       id: Date.now().toString(),
@@ -665,7 +663,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     return suggestions;
   };
 
-  const getChatModePrompt = (mode: string, content: string, context: any) => {
+  const getChatModePrompt = (mode: string, content: string) => {
     const baseContext = {
       activeFile: activeFileName,
       language: activeFileLanguage,
@@ -723,12 +721,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
 
     try {
       // Prepare enhanced context
-      let contextualMessage = getChatModePrompt(chatMode, input.trim(), {
-        activeFile: activeFileName,
-        activeFileContent: activeFileContent?.substring(0, 2000), // Increased context size
-        language: activeFileLanguage,
-        cursorPosition,
-      });
+      let contextualMessage = getChatModePrompt(chatMode, input.trim());
 
       if (attachments.length > 0) {
         contextualMessage += "\n\nAttached files:\n";
@@ -755,6 +748,8 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
           })),
           stream: streamResponse,
           mode: chatMode,
+          provider: aiProvider,
+          model: aiModel,
         }),
       });
 
@@ -999,7 +994,9 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
             {/* Enhanced Controls */}
             <Tabs
               value={chatMode}
-              onValueChange={(value) => setChatMode(value as any)}
+              onValueChange={(value) =>
+                setChatMode(value as "chat" | "review" | "fix" | "optimize")
+              }
               className="px-6"
             >
               <div className="flex items-center justify-between mb-4">
@@ -1029,6 +1026,117 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                 </TabsList>
 
                 <div className="flex items-center gap-2">
+                  {/* AI Provider & Model Selector */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 gap-2 bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-800"
+                      >
+                        <Brain className="h-3 w-3" />
+                        <span className="text-xs">
+                          {aiProvider === "gemini" ? "Gemini" : "Ollama"}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <div className="px-2 py-1.5 text-xs font-semibold text-zinc-400">
+                        AI Provider
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          setAiProvider("gemini");
+                          setAiModel("gemini-2.5-flash");
+                        }}
+                        className={aiProvider === "gemini" ? "bg-zinc-800" : ""}
+                      >
+                        <Zap className="h-3 w-3 mr-2 text-blue-400" />
+                        <div className="flex-1">
+                          <div className="font-medium">Gemini</div>
+                          <div className="text-xs text-zinc-500">Fast & Free</div>
+                        </div>
+                        {aiProvider === "gemini" && <Check className="h-3 w-3" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          setAiProvider("ollama");
+                          setAiModel("codellama:7b");
+                        }}
+                        className={aiProvider === "ollama" ? "bg-zinc-800" : ""}
+                      >
+                        <Terminal className="h-3 w-3 mr-2 text-purple-400" />
+                        <div className="flex-1">
+                          <div className="font-medium">Ollama</div>
+                          <div className="text-xs text-zinc-500">Local Models</div>
+                        </div>
+                        {aiProvider === "ollama" && <Check className="h-3 w-3" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <div className="px-2 py-1.5 text-xs font-semibold text-zinc-400">
+                        Model
+                      </div>
+                      {aiProvider === "gemini" ? (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => setAiModel("gemini-2.5-flash")}
+                            className={aiModel === "gemini-2.5-flash" ? "bg-zinc-800" : ""}
+                          >
+                            <div className="flex-1">
+                              <div className="text-sm">Gemini 2.5 Flash</div>
+                              <div className="text-xs text-zinc-500">Fastest ⚡</div>
+                            </div>
+                            {aiModel === "gemini-2.5-flash" && <Check className="h-3 w-3" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => setAiModel("gemini-2.5-pro")}
+                            className={aiModel === "gemini-2.5-pro" ? "bg-zinc-800" : ""}
+                          >
+                            <div className="flex-1">
+                              <div className="text-sm">Gemini 2.5 Pro</div>
+                              <div className="text-xs text-zinc-500">Most capable</div>
+                            </div>
+                            {aiModel === "gemini-2.5-pro" && <Check className="h-3 w-3" />}
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => setAiModel("codellama:7b")}
+                            className={aiModel === "codellama:7b" ? "bg-zinc-800" : ""}
+                          >
+                            <div className="flex-1">
+                              <div className="text-sm">CodeLlama 7B</div>
+                              <div className="text-xs text-zinc-500">Installed ✓</div>
+                            </div>
+                            {aiModel === "codellama:7b" && <Check className="h-3 w-3" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => setAiModel("llama2:7b")}
+                            className={aiModel === "llama2:7b" ? "bg-zinc-800" : ""}
+                          >
+                            <div className="flex-1">
+                              <div className="text-sm">Llama 2 7B</div>
+                              <div className="text-xs text-zinc-500">General</div>
+                            </div>
+                            {aiModel === "llama2:7b" && <Check className="h-3 w-3" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => setAiModel("deepseek-coder:1.3b")}
+                            className={aiModel === "deepseek-coder:1.3b" ? "bg-zinc-800" : ""}
+                          >
+                            <div className="flex-1">
+                              <div className="text-sm">DeepSeek Coder 1.3B</div>
+                              <div className="text-xs text-zinc-500">Fast (not installed)</div>
+                            </div>
+                            {aiModel === "deepseek-coder:1.3b" && <Check className="h-3 w-3" />}
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-zinc-500" />
                     <Input
@@ -1111,7 +1219,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                 </div>
               )}
 
-              {filteredMessages.map((msg, index) => (
+              {filteredMessages.map((msg) => (
                 <div key={msg.id} className="space-y-4">
                   <div
                     className={cn(
@@ -1146,25 +1254,25 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                           remarkPlugins={[remarkGfm, remarkMath]}
                           rehypePlugins={[rehypeKatex]}
                           components={{
-                            code: ({
-                              children,
-                              className,
-                              inline: _inline,
-                            }) => (
-                              <EnhancedCodeBlock
-                                className={className}
-                                inline={_inline as boolean}
-                                onInsert={
-                                  onInsertCode
-                                    ? (code) => handleInsertCode(code)
-                                    : undefined
-                                }
-                                onRun={onRunCode}
-                                theme={theme}
-                              >
-                                {String(children)}
-                              </EnhancedCodeBlock>
-                            ),
+                            code: ({ children, className, ...props }) => {
+                              const inline =
+                                "inline" in props ? !!props.inline : false;
+                              return (
+                                <EnhancedCodeBlock
+                                  className={className}
+                                  inline={inline}
+                                  onInsert={
+                                    onInsertCode
+                                      ? (code) => handleInsertCode(code)
+                                      : undefined
+                                  }
+                                  onRun={onRunCode}
+                                  theme={theme}
+                                >
+                                  {String(children)}
+                                </EnhancedCodeBlock>
+                              );
+                            },
                           }}
                         >
                           {msg.content}
@@ -1346,11 +1454,11 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                   onPaste={handlePaste}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      handleSendMessage(e as any);
+                      handleSendMessage(e as unknown as React.FormEvent);
                     }
                   }}
                   disabled={isLoading}
-                  className="min-h-[44px] max-h-32 bg-zinc-800/50 border-zinc-700/50 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-blue-500/20 resize-none pr-20"
+                  className="min-h-11 max-h-32 bg-zinc-800/50 border-zinc-700/50 text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:ring-blue-500/20 resize-none pr-20"
                   rows={1}
                 />
                 <div className="absolute right-3 bottom-3 flex items-center gap-2">

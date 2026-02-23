@@ -1,7 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 // Configuration
-const AI_REQUEST_TIMEOUT = 60000; // 60 seconds timeout for AI requests
+const AI_REQUEST_TIMEOUT = 180000; // 180 seconds timeout for AI requests
+const MAX_MESSAGE_LENGTH = 3000; // Max characters per message
+const MAX_HISTORY_MESSAGES = 5; // Max history messages to include
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+
+// Configure Next.js API route for longer execution time
+export const maxDuration = 180; // Allow up to 180 seconds for this route
+
+type AIProvider = "ollama" | "gemini";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -17,18 +25,79 @@ interface EnhancePromptRequest {
   };
 }
 
-async function generateAIResponse(messages: ChatMessage[]) {
-  const systemPrompt = `You are an expert AI coding assistant. You help developers with:
-- Code explanations and debugging
-- Best practices and architecture advice
-- Writing clean, efficient code
-- Troubleshooting errors
-- Code reviews and optimizations
+async function generateWithGemini(messages: ChatMessage[], model: string = "gemini-2.5-flash"): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("Gemini API key is not configured. Please add GEMINI_API_KEY to your .env file.");
+  }
 
-Always provide clear, practical answers. When showing code, use proper formatting with language-specific syntax.
-Keep responses concise but comprehensive. Use code blocks with language specification when providing code examples.`;
+  const systemPrompt = `You are a coding assistant. Help with code, debugging, and best practices. Keep responses concise and practical.`;
 
-  const fullMessages = [{ role: "system", content: systemPrompt }, ...messages];
+  // Format messages for Gemini API
+  const formattedMessages = messages.map(msg => ({
+    role: msg.role === "assistant" ? "model" : "user",
+    parts: [{ text: msg.content }]
+  }));
+
+  // Add system prompt as first user message if needed
+  const contents = [
+    { role: "user", parts: [{ text: systemPrompt }] },
+    { role: "model", parts: [{ text: "I understand. I'll help you with coding tasks." }] },
+    ...formattedMessages
+  ];
+
+  try {
+    // Use the model name directly for v1beta API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Gemini API error:", errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!text) {
+      throw new Error("No response from Gemini API");
+    }
+    
+    return text.trim();
+  } catch (error) {
+    console.error("Gemini generation error:", error);
+    throw error;
+  }
+}
+
+async function generateWithOllama(messages: ChatMessage[], model: string): Promise<string> {
+  const systemPrompt = `You are a coding assistant. Help with code, debugging, and best practices. Keep responses concise.`;
+
+  // Truncate long messages to speed up processing
+  const truncatedMessages = messages.map(msg => ({
+    ...msg,
+    content: msg.content.length > MAX_MESSAGE_LENGTH 
+      ? msg.content.substring(0, MAX_MESSAGE_LENGTH) + "..."
+      : msg.content
+  }));
+
+  const fullMessages = [{ role: "system", content: systemPrompt }, ...truncatedMessages];
 
   const prompt = fullMessages
     .map((msg) => `${msg.role}: ${msg.content}`)
@@ -44,16 +113,15 @@ Keep responses concise but comprehensive. Use code blocks with language specific
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "codellama:7b",
+        model,
         prompt,
         stream: false,
         options: {
           temperature: 0.7,
           top_p: 0.9,
-          max_tokens: 1000,
-          num_predict: 1000,
+          num_predict: 300,
           repeat_penalty: 1.1,
-          context_length: 4096,
+          num_ctx: 2048,
         },
       }),
       signal: controller.signal,
@@ -63,25 +131,55 @@ Keep responses concise but comprehensive. Use code blocks with language specific
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Error from AI model API:", errorText);
-      throw new Error(`AI model API error: ${response.status} - ${errorText}`);
+      console.error("Error from Ollama API:", errorText);
+      
+      // Check if model not found
+      if (response.status === 404 && errorText.includes("not found")) {
+        throw new Error(
+          `Model '${model}' is not installed. Install it with: ollama pull ${model}\n\nOr switch to Gemini for instant responses without installation.`
+        );
+      }
+      
+      throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     if (!data.response) {
-      throw new Error("No response from AI model");
+      throw new Error("No response from Ollama");
     }
     return data.response.trim();
   } catch (error) {
     clearTimeout(timeoutId);
     if ((error as Error).name === "AbortError") {
+      console.error("Ollama request timed out after", AI_REQUEST_TIMEOUT / 1000, "seconds");
       throw new Error(
-        `Request timeout: AI model took longer than ${AI_REQUEST_TIMEOUT / 1000} seconds to respond`,
+        `Request timeout: Ollama took longer than ${AI_REQUEST_TIMEOUT / 1000} seconds to respond. Try a smaller model or use Gemini.`,
       );
     }
-    console.error("AI generation error:", error);
+    console.error("Ollama generation error:", error);
     throw error;
   }
+}
+
+async function generateAIResponse(
+  messages: ChatMessage[],
+  provider: AIProvider = "gemini",
+  model: string = "gemini-2.5-flash"
+): Promise<{ response: string; model: string }> {
+  let response: string;
+  let usedModel: string;
+
+  if (provider === "gemini") {
+    response = await generateWithGemini(messages, model);
+    usedModel = model === "gemini-2.5-flash" ? "Gemini 2.5 Flash" : 
+                model === "gemini-2.5-pro" ? "Gemini 2.5 Pro" : 
+                model === "gemini-pro" ? "Gemini Pro" : "Gemini Flash";
+  } else {
+    response = await generateWithOllama(messages, model);
+    usedModel = model;
+  }
+
+  return { response, model: usedModel };
 }
 
 async function enhancePrompt(request: EnhancePromptRequest) {
@@ -107,12 +205,12 @@ Return only the enhanced prompt, nothing else.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "codellama:7b",
+        model: "deepseek-coder:1.3b", // Match the main chat model
         prompt: enhancementPrompt,
         stream: false,
         options: {
           temperature: 0.3,
-          max_tokens: 500,
+          num_predict: 300,
         },
       }),
     });
@@ -140,7 +238,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle regular chat
-    const { message, history } = body;
+    const { message, history, provider = "gemini", model = "gemini-2.5-flash" } = body;
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -151,29 +249,32 @@ export async function POST(req: NextRequest) {
 
     const validHistory = Array.isArray(history)
       ? history.filter(
-          (msg: any) =>
-            msg &&
+          (msg: unknown): msg is ChatMessage =>
             typeof msg === "object" &&
-            typeof msg.role === "string" &&
-            typeof msg.content === "string" &&
-            ["user", "assistant"].includes(msg.role),
+            msg !== null &&
+            typeof (msg as ChatMessage).role === "string" &&
+            typeof (msg as ChatMessage).content === "string" &&
+            ["user", "assistant"].includes((msg as ChatMessage).role),
         )
       : [];
 
-    const recentHistory = validHistory.slice(-10);
+    // Limit to fewer messages for faster processing
+    const recentHistory = validHistory.slice(-MAX_HISTORY_MESSAGES);
     const messages: ChatMessage[] = [
       ...recentHistory,
       { role: "user", content: message },
     ];
 
-    const aiResponse = await generateAIResponse(messages);
+    const result = await generateAIResponse(messages, provider as AIProvider, model);
 
-    if (!aiResponse) {
+    if (!result.response) {
       throw new Error("Empty response from AI model");
     }
 
     return NextResponse.json({
-      response: aiResponse,
+      response: result.response,
+      model: result.model,
+      provider,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -195,6 +296,18 @@ export async function GET() {
   return NextResponse.json({
     status: "AI Chat API is running",
     timestamp: new Date().toISOString(),
-    info: "Use POST method to send chat messages or enhance prompts",
+    providers: {
+      gemini: {
+        available: !!GEMINI_API_KEY,
+        models: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-pro"],
+        description: "Fast, free Google AI - Recommended",
+      },
+      ollama: {
+        available: true,
+        models: ["codellama:7b", "llama2:7b", "deepseek-coder:1.3b"],
+        description: "Local AI models (install via ollama pull)",
+      },
+    },
+    info: "Use POST method to send chat messages with provider and model selection",
   });
 }
