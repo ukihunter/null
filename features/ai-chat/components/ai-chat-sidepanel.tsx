@@ -1029,9 +1029,9 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                   {/* AI Provider & Model Selector */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="h-8 gap-2 bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-800"
                       >
                         <Brain className="h-3 w-3" />
@@ -1045,7 +1045,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                         AI Provider
                       </div>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => {
                           setAiProvider("gemini");
                           setAiModel("gemini-2.5-flash");
@@ -1055,11 +1055,15 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                         <Zap className="h-3 w-3 mr-2 text-blue-400" />
                         <div className="flex-1">
                           <div className="font-medium">Gemini</div>
-                          <div className="text-xs text-zinc-500">Fast & Free</div>
+                          <div className="text-xs text-zinc-500">
+                            Fast & Free
+                          </div>
                         </div>
-                        {aiProvider === "gemini" && <Check className="h-3 w-3" />}
+                        {aiProvider === "gemini" && (
+                          <Check className="h-3 w-3" />
+                        )}
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => {
                           setAiProvider("ollama");
                           setAiModel("codellama:7b");
@@ -1069,9 +1073,13 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                         <Terminal className="h-3 w-3 mr-2 text-purple-400" />
                         <div className="flex-1">
                           <div className="font-medium">Ollama</div>
-                          <div className="text-xs text-zinc-500">Local Models</div>
+                          <div className="text-xs text-zinc-500">
+                            Local Models
+                          </div>
                         </div>
-                        {aiProvider === "ollama" && <Check className="h-3 w-3" />}
+                        {aiProvider === "ollama" && (
+                          <Check className="h-3 w-3" />
+                        )}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <div className="px-2 py-1.5 text-xs font-semibold text-zinc-400">
@@ -1079,58 +1087,92 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                       </div>
                       {aiProvider === "gemini" ? (
                         <>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => setAiModel("gemini-2.5-flash")}
-                            className={aiModel === "gemini-2.5-flash" ? "bg-zinc-800" : ""}
+                            className={
+                              aiModel === "gemini-2.5-flash"
+                                ? "bg-zinc-800"
+                                : ""
+                            }
                           >
                             <div className="flex-1">
                               <div className="text-sm">Gemini 2.5 Flash</div>
-                              <div className="text-xs text-zinc-500">Fastest ⚡</div>
+                              <div className="text-xs text-zinc-500">
+                                Fastest ⚡
+                              </div>
                             </div>
-                            {aiModel === "gemini-2.5-flash" && <Check className="h-3 w-3" />}
+                            {aiModel === "gemini-2.5-flash" && (
+                              <Check className="h-3 w-3" />
+                            )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => setAiModel("gemini-2.5-pro")}
-                            className={aiModel === "gemini-2.5-pro" ? "bg-zinc-800" : ""}
+                            className={
+                              aiModel === "gemini-2.5-pro" ? "bg-zinc-800" : ""
+                            }
                           >
                             <div className="flex-1">
                               <div className="text-sm">Gemini 2.5 Pro</div>
-                              <div className="text-xs text-zinc-500">Most capable</div>
+                              <div className="text-xs text-zinc-500">
+                                Most capable
+                              </div>
                             </div>
-                            {aiModel === "gemini-2.5-pro" && <Check className="h-3 w-3" />}
+                            {aiModel === "gemini-2.5-pro" && (
+                              <Check className="h-3 w-3" />
+                            )}
                           </DropdownMenuItem>
                         </>
                       ) : (
                         <>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => setAiModel("codellama:7b")}
-                            className={aiModel === "codellama:7b" ? "bg-zinc-800" : ""}
+                            className={
+                              aiModel === "codellama:7b" ? "bg-zinc-800" : ""
+                            }
                           >
                             <div className="flex-1">
                               <div className="text-sm">CodeLlama 7B</div>
-                              <div className="text-xs text-zinc-500">Installed ✓</div>
+                              <div className="text-xs text-zinc-500">
+                                Installed ✓
+                              </div>
                             </div>
-                            {aiModel === "codellama:7b" && <Check className="h-3 w-3" />}
+                            {aiModel === "codellama:7b" && (
+                              <Check className="h-3 w-3" />
+                            )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => setAiModel("llama2:7b")}
-                            className={aiModel === "llama2:7b" ? "bg-zinc-800" : ""}
+                            className={
+                              aiModel === "llama2:7b" ? "bg-zinc-800" : ""
+                            }
                           >
                             <div className="flex-1">
                               <div className="text-sm">Llama 2 7B</div>
-                              <div className="text-xs text-zinc-500">General</div>
+                              <div className="text-xs text-zinc-500">
+                                General
+                              </div>
                             </div>
-                            {aiModel === "llama2:7b" && <Check className="h-3 w-3" />}
+                            {aiModel === "llama2:7b" && (
+                              <Check className="h-3 w-3" />
+                            )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => setAiModel("deepseek-coder:1.3b")}
-                            className={aiModel === "deepseek-coder:1.3b" ? "bg-zinc-800" : ""}
+                            className={
+                              aiModel === "deepseek-coder:1.3b"
+                                ? "bg-zinc-800"
+                                : ""
+                            }
                           >
                             <div className="flex-1">
                               <div className="text-sm">DeepSeek Coder 1.3B</div>
-                              <div className="text-xs text-zinc-500">Fast (not installed)</div>
+                              <div className="text-xs text-zinc-500">
+                                Fast (not installed)
+                              </div>
                             </div>
-                            {aiModel === "deepseek-coder:1.3b" && <Check className="h-3 w-3" />}
+                            {aiModel === "deepseek-coder:1.3b" && (
+                              <Check className="h-3 w-3" />
+                            )}
                           </DropdownMenuItem>
                         </>
                       )}

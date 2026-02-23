@@ -25,24 +25,32 @@ interface EnhancePromptRequest {
   };
 }
 
-async function generateWithGemini(messages: ChatMessage[], model: string = "gemini-2.5-flash"): Promise<string> {
+async function generateWithGemini(
+  messages: ChatMessage[],
+  model: string = "gemini-2.5-flash",
+): Promise<string> {
   if (!GEMINI_API_KEY) {
-    throw new Error("Gemini API key is not configured. Please add GEMINI_API_KEY to your .env file.");
+    throw new Error(
+      "Gemini API key is not configured. Please add GEMINI_API_KEY to your .env file.",
+    );
   }
 
   const systemPrompt = `You are a coding assistant. Help with code, debugging, and best practices. Keep responses concise and practical.`;
 
   // Format messages for Gemini API
-  const formattedMessages = messages.map(msg => ({
+  const formattedMessages = messages.map((msg) => ({
     role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content }]
+    parts: [{ text: msg.content }],
   }));
 
   // Add system prompt as first user message if needed
   const contents = [
     { role: "user", parts: [{ text: systemPrompt }] },
-    { role: "model", parts: [{ text: "I understand. I'll help you with coding tasks." }] },
-    ...formattedMessages
+    {
+      role: "model",
+      parts: [{ text: "I understand. I'll help you with coding tasks." }],
+    },
+    ...formattedMessages,
   ];
 
   try {
@@ -63,7 +71,7 @@ async function generateWithGemini(messages: ChatMessage[], model: string = "gemi
             maxOutputTokens: 1024,
           },
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -74,11 +82,11 @@ async function generateWithGemini(messages: ChatMessage[], model: string = "gemi
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
     if (!text) {
       throw new Error("No response from Gemini API");
     }
-    
+
     return text.trim();
   } catch (error) {
     console.error("Gemini generation error:", error);
@@ -86,18 +94,25 @@ async function generateWithGemini(messages: ChatMessage[], model: string = "gemi
   }
 }
 
-async function generateWithOllama(messages: ChatMessage[], model: string): Promise<string> {
+async function generateWithOllama(
+  messages: ChatMessage[],
+  model: string,
+): Promise<string> {
   const systemPrompt = `You are a coding assistant. Help with code, debugging, and best practices. Keep responses concise.`;
 
   // Truncate long messages to speed up processing
-  const truncatedMessages = messages.map(msg => ({
+  const truncatedMessages = messages.map((msg) => ({
     ...msg,
-    content: msg.content.length > MAX_MESSAGE_LENGTH 
-      ? msg.content.substring(0, MAX_MESSAGE_LENGTH) + "..."
-      : msg.content
+    content:
+      msg.content.length > MAX_MESSAGE_LENGTH
+        ? msg.content.substring(0, MAX_MESSAGE_LENGTH) + "..."
+        : msg.content,
   }));
 
-  const fullMessages = [{ role: "system", content: systemPrompt }, ...truncatedMessages];
+  const fullMessages = [
+    { role: "system", content: systemPrompt },
+    ...truncatedMessages,
+  ];
 
   const prompt = fullMessages
     .map((msg) => `${msg.role}: ${msg.content}`)
@@ -132,14 +147,14 @@ async function generateWithOllama(messages: ChatMessage[], model: string): Promi
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Error from Ollama API:", errorText);
-      
+
       // Check if model not found
       if (response.status === 404 && errorText.includes("not found")) {
         throw new Error(
-          `Model '${model}' is not installed. Install it with: ollama pull ${model}\n\nOr switch to Gemini for instant responses without installation.`
+          `Model '${model}' is not installed. Install it with: ollama pull ${model}\n\nOr switch to Gemini for instant responses without installation.`,
         );
       }
-      
+
       throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
     }
 
@@ -151,7 +166,11 @@ async function generateWithOllama(messages: ChatMessage[], model: string): Promi
   } catch (error) {
     clearTimeout(timeoutId);
     if ((error as Error).name === "AbortError") {
-      console.error("Ollama request timed out after", AI_REQUEST_TIMEOUT / 1000, "seconds");
+      console.error(
+        "Ollama request timed out after",
+        AI_REQUEST_TIMEOUT / 1000,
+        "seconds",
+      );
       throw new Error(
         `Request timeout: Ollama took longer than ${AI_REQUEST_TIMEOUT / 1000} seconds to respond. Try a smaller model or use Gemini.`,
       );
@@ -164,16 +183,21 @@ async function generateWithOllama(messages: ChatMessage[], model: string): Promi
 async function generateAIResponse(
   messages: ChatMessage[],
   provider: AIProvider = "gemini",
-  model: string = "gemini-2.5-flash"
+  model: string = "gemini-2.5-flash",
 ): Promise<{ response: string; model: string }> {
   let response: string;
   let usedModel: string;
 
   if (provider === "gemini") {
     response = await generateWithGemini(messages, model);
-    usedModel = model === "gemini-2.5-flash" ? "Gemini 2.5 Flash" : 
-                model === "gemini-2.5-pro" ? "Gemini 2.5 Pro" : 
-                model === "gemini-pro" ? "Gemini Pro" : "Gemini Flash";
+    usedModel =
+      model === "gemini-2.5-flash"
+        ? "Gemini 2.5 Flash"
+        : model === "gemini-2.5-pro"
+          ? "Gemini 2.5 Pro"
+          : model === "gemini-pro"
+            ? "Gemini Pro"
+            : "Gemini Flash";
   } else {
     response = await generateWithOllama(messages, model);
     usedModel = model;
@@ -238,7 +262,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle regular chat
-    const { message, history, provider = "gemini", model = "gemini-2.5-flash" } = body;
+    const {
+      message,
+      history,
+      provider = "gemini",
+      model = "gemini-2.5-flash",
+    } = body;
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -265,7 +294,11 @@ export async function POST(req: NextRequest) {
       { role: "user", content: message },
     ];
 
-    const result = await generateAIResponse(messages, provider as AIProvider, model);
+    const result = await generateAIResponse(
+      messages,
+      provider as AIProvider,
+      model,
+    );
 
     if (!result.response) {
       throw new Error("Empty response from AI model");
