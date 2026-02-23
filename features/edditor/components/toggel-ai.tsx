@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import React from "react";
 import { cn } from "@/lib/utils";
+import { AIChatSidePanel } from "@/features/ai-chat/components/ai-chat-sidepanel";
 //import { AIChatSidePanel } from "@/features/ai-chat/components/ai-chat-sidepanel";
 
 interface ToggleAIProps {
@@ -53,6 +54,27 @@ const ToggelAI = ({
   loadingProgress = 0,
   activeFeature,
 }: ToggleAIProps) => {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  const handleInsertCode = (
+    code: string,
+    fileName?: string,
+    position?: { line: number; column: number },
+  ) => {
+    console.log("Inserting code:", { code, fileName, position });
+  };
+
+  const handleRuncode = (code: string, language: string) => {
+    console.log("Running code:", { code, language });
+  };
+
+  const activeFile = {
+    name: "example.ts",
+    content: "//file content",
+  };
+
+  const cursorPosition = { line: 1, column: 1 };
+
   return (
     <>
       <DropdownMenu>
@@ -157,7 +179,7 @@ const ToggelAI = ({
 
           <DropdownMenuItem
             onClick={() => {
-              // Open AI chat side panel
+              setIsChatOpen(true);
             }}
             className="py-2.5 cursor-pointer"
           >
@@ -173,19 +195,17 @@ const ToggelAI = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* <AIChatSidePanel
+      <AIChatSidePanel
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         onInsertCode={handleInsertCode}
-        onRunCode={handleRunCode}
+        onRunCode={handleRuncode}
         activeFileName={activeFile?.name}
         activeFileContent={activeFile?.content}
         activeFileLanguage="TypeScript" // Assuming TypeScript as the language
         cursorPosition={cursorPosition}
         theme="dark"
       />
-      */}
     </>
   );
 };
