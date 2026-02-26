@@ -194,13 +194,17 @@ wss.on("connection", async (ws, req) => {
 
         // Step 1 (type 0): reply with step 2 containing all missing updates
         if (syncType === 0) {
-          console.log(`[Sync] step1 from ${userId} → sending step2 (docSize=${room.doc.store.clients.size})`);
+          console.log(
+            `[Sync] step1 from ${userId} → sending step2 (docSize=${room.doc.store.clients.size})`,
+          );
           ws.send(encoding.toUint8Array(replyEncoder));
         }
 
         // Update (type 2): broadcast raw message to all other clients
         if (syncType === 2) {
-          console.log(`[Sync] update from ${userId} → broadcasting to ${room.clients.size - 1} other(s)`);
+          console.log(
+            `[Sync] update from ${userId} → broadcasting to ${room.clients.size - 1} other(s)`,
+          );
           room.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
               client.send(data);

@@ -266,7 +266,9 @@ export function useCollaboration({
     };
 
     ws.onclose = (e) => {
-      console.log(`[Collab] WebSocket closed code=${e.code} reason=${e.reason}`);
+      console.log(
+        `[Collab] WebSocket closed code=${e.code} reason=${e.reason}`,
+      );
       if (active) setConnected(false);
     };
 
