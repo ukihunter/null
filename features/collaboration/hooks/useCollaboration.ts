@@ -261,7 +261,12 @@ export function useCollaboration({
       }
     };
 
-    ws.onclose = () => {
+    ws.onerror = (e) => {
+      console.error("[Collab] WebSocket error:", e);
+    };
+
+    ws.onclose = (e) => {
+      console.log(`[Collab] WebSocket closed code=${e.code} reason=${e.reason}`);
       if (active) setConnected(false);
     };
 

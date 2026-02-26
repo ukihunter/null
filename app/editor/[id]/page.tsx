@@ -1,7 +1,7 @@
 "use client";
 
 import React, { use, useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/features/edditor/hook/useEditor";
@@ -81,7 +81,6 @@ import { useCollaborationContext } from "@/features/collaboration/CollaborationC
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { editorData, templateData, error, isLoading, saveTemplateData } =
     useEditor(id ?? "");
@@ -118,14 +117,17 @@ const Page = () => {
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-join collaboration session from URL param (?joinSession=KEY)
-  // This fires AFTER the page mounts, eliminating the startSession+router.push race
+  // This fires AFTER the page mounts, eliminating the startSession+router.push race.
+  // Use window.history.replaceState (NOT router.replace) to strip the query param —
+  // router.replace causes the [id] layout to remount, which resets CollaborationProvider
+  // and destroys the WebSocket connection immediately after it was established.
   useEffect(() => {
     const key = searchParams.get("joinSession");
     if (!key || !id) return;
     startSession(key);
-    // Remove the param from the URL without a navigation
-    router.replace(`/editor/${id}`);
-  }, [searchParams, startSession, router, id]);
+    // Strip the param from the URL without triggering any React/Next.js navigation.
+    window.history.replaceState(null, "", `/editor/${id}`);
+  }, [searchParams, startSession, id]);
 
   // Cleanup Yjs binding when page unmounts (navigation away)
   useEffect(() => {
