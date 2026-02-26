@@ -40,8 +40,14 @@ const COLLAB_SERVER_URL =
   process.env.NEXT_PUBLIC_COLLAB_SERVER_URL || "ws://localhost:4000";
 
 const USER_COLORS = [
-  "#F87171", "#60A5FA", "#34D399", "#A78BFA",
-  "#FBBF24", "#F472B6", "#38BDF8", "#4ADE80",
+  "#F87171",
+  "#60A5FA",
+  "#34D399",
+  "#A78BFA",
+  "#FBBF24",
+  "#F472B6",
+  "#38BDF8",
+  "#4ADE80",
 ];
 
 function getColor(userId: string) {
@@ -80,12 +86,17 @@ export function useCollaboration({
   }, []);
 
   // ── Signal listener registry ──────────────────────────
-  const signalHandlers = useRef<Map<string, (from: string, payload: string) => void>>(new Map());
+  const signalHandlers = useRef<
+    Map<string, (from: string, payload: string) => void>
+  >(new Map());
 
-  const onSignal = useCallback((key: string, handler: (from: string, payload: string) => void) => {
-    signalHandlers.current.set(key, handler);
-    return () => signalHandlers.current.delete(key);
-  }, []);
+  const onSignal = useCallback(
+    (key: string, handler: (from: string, payload: string) => void) => {
+      signalHandlers.current.set(key, handler);
+      return () => signalHandlers.current.delete(key);
+    },
+    [],
+  );
 
   // ── Bind Yjs ↔ Monaco editor ──────────────────────────
   const bindEditorToYjs = useCallback(
@@ -113,7 +124,7 @@ export function useCollaboration({
         if (suppressLocalRef.current) return;
         ydoc.transact(() => {
           for (const change of [...e.changes].sort(
-            (a, b) => b.rangeOffset - a.rangeOffset
+            (a, b) => b.rangeOffset - a.rangeOffset,
           )) {
             yText.delete(change.rangeOffset, change.rangeLength);
             if (change.text) yText.insert(change.rangeOffset, change.text);
@@ -140,7 +151,7 @@ export function useCollaboration({
         yText.unobserve(observer);
       };
     },
-    [onRemoteChange]
+    [onRemoteChange],
   );
 
   // ── Render remote cursors ──────────────────────────────
@@ -175,10 +186,10 @@ export function useCollaboration({
 
       monacoDecorations.current = editor.deltaDecorations(
         monacoDecorations.current,
-        newDecorations
+        newDecorations,
       );
     },
-    []
+    [],
   );
 
   // ── Update awareness with cursor position ─────────────
@@ -195,7 +206,7 @@ export function useCollaboration({
         peerColor: color,
       });
     },
-    [userId, userName, color]
+    [userId, userName, color],
   );
 
   // ── Connect to collab server ───────────────────────────
@@ -228,7 +239,7 @@ export function useCollaboration({
       // Send initial awareness
       const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(
         awareness,
-        [ydoc.clientID]
+        [ydoc.clientID],
       );
       const enc2 = encoding.createEncoder();
       encoding.writeVarUint(enc2, MSG_AWARENESS);
@@ -250,7 +261,7 @@ export function useCollaboration({
           decoder,
           replyEncoder,
           ydoc,
-          null
+          null,
         );
         if (hasReply) ws.send(encoding.toUint8Array(replyEncoder));
       } else if (msgType === MSG_AWARENESS) {
@@ -283,7 +294,8 @@ export function useCollaboration({
 
     // Forward doc updates to server
     ydoc.on("update", (update: Uint8Array, origin: unknown) => {
-      if (origin === "remote" || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if (origin === "remote" || !ws || ws.readyState !== WebSocket.OPEN)
+        return;
       const enc = encoding.createEncoder();
       encoding.writeVarUint(enc, MSG_SYNC);
       syncProtocol.writeUpdate(enc, update);
@@ -308,10 +320,10 @@ export function useCollaboration({
   useEffect(() => {
     if (!monacoEditor || !awarenessRef.current) return;
     const disposable = monacoEditor.onDidChangeCursorPosition(() =>
-      updateCursor(monacoEditor)
+      updateCursor(monacoEditor),
     );
     const awarenessUnsub = awarenessRef.current.on("change", () =>
-      renderCursors(monacoEditor)
+      renderCursors(monacoEditor),
     );
     return () => {
       disposable.dispose();

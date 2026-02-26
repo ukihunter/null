@@ -29,11 +29,13 @@ interface CollaborationContextValue {
   // Editor binding
   bindEditorToYjs: (
     editor: Monaco.editor.IStandaloneCodeEditor,
-    fileId: string
+    fileId: string,
   ) => () => void;
 }
 
-const CollaborationContext = createContext<CollaborationContextValue | null>(null);
+const CollaborationContext = createContext<CollaborationContextValue | null>(
+  null,
+);
 
 export function CollaborationProvider({
   children,
@@ -95,7 +97,7 @@ export function useCollaborationContext() {
   const ctx = useContext(CollaborationContext);
   if (!ctx)
     throw new Error(
-      "useCollaborationContext must be used inside CollaborationProvider"
+      "useCollaborationContext must be used inside CollaborationProvider",
     );
   return ctx;
 }

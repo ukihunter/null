@@ -42,7 +42,7 @@ async function persistDoc(roomName, state) {
     await DocState.findOneAndUpdate(
       { roomName },
       { state, updatedAt: new Date() },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
   } catch (e) {
     console.error("[DB] persistDoc error:", e.message);
@@ -130,7 +130,9 @@ wss.on("connection", async (ws, req) => {
   ws.roomName = roomName;
   ws.userId = userId;
 
-  console.log(`[WS] Connected: userId=${userId} room=${roomName} total=${room.clients.size}`);
+  console.log(
+    `[WS] Connected: userId=${userId} room=${roomName} total=${room.clients.size}`,
+  );
 
   // ── Send initial sync (Step 1) ──────────────────────────
   const encoder = encoding.createEncoder();
@@ -147,8 +149,8 @@ wss.on("connection", async (ws, req) => {
       enc2,
       awarenessProtocol.encodeAwarenessUpdate(
         room.awareness,
-        Array.from(awarenessStates.keys())
-      )
+        Array.from(awarenessStates.keys()),
+      ),
     );
     ws.send(encoding.toUint8Array(enc2));
   }
@@ -167,7 +169,7 @@ wss.on("connection", async (ws, req) => {
           decoder,
           replyEncoder,
           room.doc,
-          ws
+          ws,
         );
         if (hasReply) ws.send(encoding.toUint8Array(replyEncoder));
 
@@ -183,7 +185,7 @@ wss.on("connection", async (ws, req) => {
         awarenessProtocol.applyAwarenessUpdate(
           room.awareness,
           awarenessUpdate,
-          ws
+          ws,
         );
         // Broadcast awareness to all others
         room.clients.forEach((client) => {
@@ -220,13 +222,15 @@ wss.on("connection", async (ws, req) => {
   // ── Close handler ────────────────────────────────────────
   ws.on("close", () => {
     room.clients.delete(ws);
-    console.log(`[WS] Disconnected: userId=${userId} room=${roomName} remaining=${room.clients.size}`);
+    console.log(
+      `[WS] Disconnected: userId=${userId} room=${roomName} remaining=${room.clients.size}`,
+    );
 
     // Remove awareness
     awarenessProtocol.removeAwarenessStates(
       room.awareness,
       [room.doc.clientID],
-      "disconnect"
+      "disconnect",
     );
 
     // If room is empty, close it after 30s (give time for reconnect)
@@ -254,7 +258,10 @@ async function start() {
       await mongoose.connect(MONGO_URI);
       console.log("[DB] MongoDB connected");
     } catch (e) {
-      console.warn("[DB] MongoDB connection failed (running without persistence):", e.message);
+      console.warn(
+        "[DB] MongoDB connection failed (running without persistence):",
+        e.message,
+      );
     }
   } else {
     console.warn("[DB] DATABASE_URL not set — running without persistence");

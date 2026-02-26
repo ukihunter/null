@@ -91,7 +91,10 @@ const CollaborationSessionButtons = ({
 
   // ── Join Session ────────────────────────────────────────
   const handleJoin = async () => {
-    if (!joinKey.trim()) { setError("Please enter a session key."); return; }
+    if (!joinKey.trim()) {
+      setError("Please enter a session key.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -128,7 +131,9 @@ const CollaborationSessionButtons = ({
             )}
             {connected ? "Live" : "Connecting…"}
           </span>
-          <span className="font-mono text-muted-foreground">{activeSessionKey}</span>
+          <span className="font-mono text-muted-foreground">
+            {activeSessionKey}
+          </span>
         </div>
 
         {/* Online peers */}
@@ -214,7 +219,6 @@ const CollaborationSessionButtons = ({
   return (
     <div className="w-full">
       <div className="bg-card border rounded-xl p-4 shadow-sm space-y-5 transition-all">
-
         {/* Home */}
         {view === "home" && (
           <>
@@ -228,19 +232,40 @@ const CollaborationSessionButtons = ({
               </p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button onClick={handleCreate} disabled={loading} className="w-full flex items-center gap-2" size="sm">
-                {loading ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              <Button
+                onClick={handleCreate}
+                disabled={loading}
+                className="w-full flex items-center gap-2"
+                size="sm"
+              >
+                {loading ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Plus size={13} />
+                )}
                 Create New Session
               </Button>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <div className="flex-1 h-px bg-border" />OR<div className="flex-1 h-px bg-border" />
+                <div className="flex-1 h-px bg-border" />
+                OR
+                <div className="flex-1 h-px bg-border" />
               </div>
-              <Button variant="outline" size="sm" onClick={() => { setView("join"); setError(null); }} className="w-full flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setView("join");
+                  setError(null);
+                }}
+                className="w-full flex items-center gap-2"
+              >
                 <LogIn size={13} />
                 Join Existing Session
               </Button>
             </div>
-            {error && <p className="text-xs text-destructive text-center">{error}</p>}
+            {error && (
+              <p className="text-xs text-destructive text-center">{error}</p>
+            )}
           </>
         )}
 
@@ -248,16 +273,31 @@ const CollaborationSessionButtons = ({
         {view === "created" && sessionKey && (
           <div className="space-y-4">
             <div className="text-center space-y-1">
-              <h2 className="text-sm font-semibold text-green-600">Session Created!</h2>
-              <p className="text-xs text-muted-foreground">Share this key with your collaborators.</p>
+              <h2 className="text-sm font-semibold text-green-600">
+                Session Created!
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Share this key with your collaborators.
+              </p>
             </div>
             <div className="bg-muted rounded-lg px-3 py-2 flex items-center justify-between font-mono text-base tracking-widest border">
               <span className="truncate">{sessionKey}</span>
-              <Button variant="ghost" size="icon" onClick={handleCopy} className="ml-2 h-7 w-7">
-                {copied ? <ClipboardCheckIcon size={14} className="text-green-500" /> : <Clipboard size={14} />}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCopy}
+                className="ml-2 h-7 w-7"
+              >
+                {copied ? (
+                  <ClipboardCheckIcon size={14} className="text-green-500" />
+                ) : (
+                  <Clipboard size={14} />
+                )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground text-center">Anyone with this key can join.</p>
+            <p className="text-xs text-muted-foreground text-center">
+              Anyone with this key can join.
+            </p>
           </div>
         )}
 
@@ -265,7 +305,11 @@ const CollaborationSessionButtons = ({
         {view === "join" && (
           <div className="space-y-4">
             <button
-              onClick={() => { setView("home"); setError(null); setJoinKey(""); }}
+              onClick={() => {
+                setView("home");
+                setError(null);
+                setJoinKey("");
+              }}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft size={12} /> Back
@@ -275,24 +319,35 @@ const CollaborationSessionButtons = ({
                 <LogIn size={15} />
                 Join a Session
               </h2>
-              <p className="text-xs text-muted-foreground">Enter the 8-character session key.</p>
+              <p className="text-xs text-muted-foreground">
+                Enter the 8-character session key.
+              </p>
             </div>
             <Input
               placeholder="AB12CD34"
               value={joinKey}
-              onChange={(e) => { setJoinKey(e.target.value.toUpperCase()); setError(null); }}
+              onChange={(e) => {
+                setJoinKey(e.target.value.toUpperCase());
+                setError(null);
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleJoin()}
               maxLength={8}
               className="text-center font-mono tracking-widest text-base uppercase"
             />
-            {error && <p className="text-xs text-destructive text-center">{error}</p>}
+            {error && (
+              <p className="text-xs text-destructive text-center">{error}</p>
+            )}
             <Button
               onClick={handleJoin}
               disabled={loading || joinKey.trim().length < 8}
               className="w-full flex items-center gap-2"
               size="sm"
             >
-              {loading ? <Loader2 size={13} className="animate-spin" /> : <LogIn size={13} />}
+              {loading ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <LogIn size={13} />
+              )}
               Join Session
             </Button>
           </div>

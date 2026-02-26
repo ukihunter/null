@@ -30,11 +30,16 @@ export interface UseVoiceOptions {
   /** Register a signal listener (returns unsubscribe fn) */
   onSignal: (
     key: string,
-    handler: (from: string, payload: string) => void
+    handler: (from: string, payload: string) => void,
   ) => () => void;
 }
 
-export function useVoice({ userId, peerIds, sendSignal, onSignal }: UseVoiceOptions) {
+export function useVoice({
+  userId,
+  peerIds,
+  sendSignal,
+  onSignal,
+}: UseVoiceOptions) {
   const [inCall, setInCall] = useState(false);
   const [muted, setMuted] = useState(false);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -93,7 +98,7 @@ export function useVoice({ userId, peerIds, sendSignal, onSignal }: UseVoiceOpti
 
       return pc;
     },
-    [sendSignal]
+    [sendSignal],
   );
 
   // ── Handle incoming signals ───────────────────────────
@@ -109,7 +114,7 @@ export function useVoice({ userId, peerIds, sendSignal, onSignal }: UseVoiceOpti
       if (payload.type === "voice-offer") {
         const pc = createPeerConnection(from, false);
         await pc.setRemoteDescription(
-          new RTCSessionDescription({ type: "offer", sdp: payload.sdp })
+          new RTCSessionDescription({ type: "offer", sdp: payload.sdp }),
         );
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
@@ -119,7 +124,7 @@ export function useVoice({ userId, peerIds, sendSignal, onSignal }: UseVoiceOpti
         const pc = pcsRef.current.get(from);
         if (!pc) return;
         await pc.setRemoteDescription(
-          new RTCSessionDescription({ type: "answer", sdp: payload.sdp })
+          new RTCSessionDescription({ type: "answer", sdp: payload.sdp }),
         );
       } else if (payload.type === "voice-ice") {
         const pc = pcsRef.current.get(from);
@@ -197,14 +202,19 @@ export function useVoice({ userId, peerIds, sendSignal, onSignal }: UseVoiceOpti
   useEffect(() => {
     if (!inCall) return;
     const newPeers = peerIds.filter(
-      (id) => id !== userId && !prevPeerIdsRef.current.includes(id)
+      (id) => id !== userId && !prevPeerIdsRef.current.includes(id),
     );
     newPeers.forEach((peerId) => createPeerConnection(peerId, true));
     prevPeerIdsRef.current = peerIds;
   }, [peerIds, inCall, userId, createPeerConnection]);
 
   // Cleanup on unmount
-  useEffect(() => () => { leaveCall(); }, []); // eslint-disable-line
+  useEffect(
+    () => () => {
+      leaveCall();
+    },
+    [],
+  ); // eslint-disable-line
 
   return { inCall, muted, joinCall, leaveCall, toggleMute };
 }
