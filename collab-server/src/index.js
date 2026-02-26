@@ -167,7 +167,7 @@ wss.on("connection", async (ws, req) => {
       } else if (Array.isArray(rawData)) {
         buf = Buffer.concat(rawData); // fragmented frames
       } else {
-        buf = Buffer.from(rawData);   // ArrayBuffer or other
+        buf = Buffer.from(rawData); // ArrayBuffer or other
       }
 
       if (buf.length < 2) {
