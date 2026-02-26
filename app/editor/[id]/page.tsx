@@ -76,6 +76,7 @@ import {
 import ToggelAI from "@/features/edditor/components/toggel-ai";
 import { useAISuggestion } from "@/features/ai-chat/hooks/useAiSuggesion";
 import { editor } from "monaco-editor";
+import { useCollaborationContext } from "@/features/collaboration/CollaborationContext";
 //import { error } from "console";
 
 const Page = () => {
@@ -84,6 +85,33 @@ const Page = () => {
     useEditor(id ?? "");
 
   const aiSuggestion = useAISuggestion();
+
+  const { activeSessionKey, bindEditorToYjs } = useCollaborationContext();
+  const collabEditorRef = useRef<any>(null);
+  const collabUnbindRef = useRef<(() => void) | null>(null);
+
+  // Re-bind the editor to Yjs whenever the active file or session changes
+  useEffect(() => {
+    if (collabUnbindRef.current) {
+      collabUnbindRef.current();
+      collabUnbindRef.current = null;
+    }
+    if (activeSessionKey && collabEditorRef.current && activeFileId) {
+      collabUnbindRef.current = bindEditorToYjs(collabEditorRef.current, activeFileId);
+    }
+  }, [activeSessionKey, activeFileId, bindEditorToYjs]);
+
+  const handleEditorMount = useCallback(
+    (editor: any) => {
+      collabEditorRef.current = editor;
+      if (activeSessionKey && activeFileId) {
+        if (collabUnbindRef.current) collabUnbindRef.current();
+        collabUnbindRef.current = bindEditorToYjs(editor, activeFileId);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeSessionKey, activeFileId],
+  );
 
   const {
     activeFileId,
@@ -612,6 +640,7 @@ const Page = () => {
                         <CodeEditor
                           activeFile={activeFile}
                           content={activeFile?.content || ""}
+                          onEditorMount={handleEditorMount}
                           onContentChange={async (value) => {
                             if (activeFileId && activeFile) {
                               updateFileContent(activeFileId, value);

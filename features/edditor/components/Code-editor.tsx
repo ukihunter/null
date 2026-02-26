@@ -21,6 +21,7 @@ interface CodeEditorProps {
   onAcceptSuggestion(editor: any, monaco: Monaco): void;
   onRejectSuggestion(type: string, editor: any): void;
   onTriggerSuggestion(type: string, editor: any): void;
+  onEditorMount?: (editor: any) => void;
 }
 
 const CodeEditor = ({
@@ -33,7 +34,8 @@ const CodeEditor = ({
   onAcceptSuggestion,
   onRejectSuggestion,
   onTriggerSuggestion,
-}: PlaygroundEditorProps) => {
+  onEditorMount,
+}: CodeEditorProps) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const inlineCompletionProviderRef = useRef<any>(null);
@@ -360,6 +362,7 @@ const CodeEditor = ({
     editorRef.current = editor;
     monacoRef.current = monaco;
     console.log("Editor instance mounted:", !!editorRef.current);
+    onEditorMount?.(editor);
 
     editor.updateOptions({
       ...defaultEditorOptions,
