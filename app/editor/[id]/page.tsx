@@ -88,7 +88,8 @@ const Page = () => {
 
   const aiSuggestion = useAISuggestion();
 
-  const { activeSessionKey, synced, startSession, bindEditorToYjs } = useCollaborationContext();
+  const { activeSessionKey, synced, startSession, bindEditorToYjs } =
+    useCollaborationContext();
   const collabEditorRef = useRef<any>(null);
   const collabUnbindRef = useRef<(() => void) | null>(null);
 
