@@ -28,8 +28,10 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useParams } from "next/navigation";
 import TemplateNode from "./template-node";
 import { TemplateFile, TemplateFolder } from "../lib/path-to-jason";
+import CollaborationSessionButtons from "@/features/collaboration/collboration";
 
 interface ExplorerPanelProps {
   data: TemplateFolder;
@@ -43,12 +45,12 @@ interface ExplorerPanelProps {
     file: TemplateFile,
     newFilename: string,
     newExtension: string,
-    parentPath: string
+    parentPath: string,
   ) => void;
   onRenameFolder?: (
     folder: TemplateFolder,
     newFolderName: string,
-    parentPath: string
+    parentPath: string,
   ) => void;
 }
 
@@ -305,6 +307,9 @@ export function ExtensionsPanel() {
 }
 
 export function CollaborationPanel() {
+  const params = useParams();
+  const edditorSessionId = params?.id as string;
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
       <div className="border-b p-4">
@@ -314,20 +319,7 @@ export function CollaborationPanel() {
         </h2>
       </div>
       <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-medium mb-2">Active Users</h3>
-            <p className="text-sm text-muted-foreground">
-              No active collaborators
-            </p>
-          </div>
-          <div>
-            <h3 className="text-sm font-medium mb-2">Share Session</h3>
-            <p className="text-xs text-muted-foreground">
-              Start a collaboration session to invite others
-            </p>
-          </div>
-        </div>
+        <CollaborationSessionButtons edditorSessionId={edditorSessionId} />
       </ScrollArea>
     </div>
   );

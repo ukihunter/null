@@ -111,3 +111,13 @@ model StarMark {
 
   @@unique([userId,edditorSessionId])
 }
+
+model CollaborationSession {
+  id              String   @id @default(cuid()) @map("_id")
+  sessionKey      String   @unique
+  edditorSessionId String
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+  isActive        Boolean  @default(true)
+  participants    String[] 
+}
