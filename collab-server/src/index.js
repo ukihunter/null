@@ -159,8 +159,15 @@ wss.on("connection", async (ws, req) => {
 
   // ── Message handler ──────────────────────────────────────
   ws.on("message", (rawData) => {
+    let buf;
     try {
-      const data = new Uint8Array(rawData);
+      // Safely convert Node.js Buffer (pool slice) to plain Uint8Array
+      buf = Buffer.isBuffer(rawData)
+        ? rawData
+        : Buffer.isBuffer(rawData[0])
+        ? Buffer.concat(rawData)   // Buffer[] (fragmented)
+        : Buffer.from(rawData);
+      const data = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
       const decoder = decoding.createDecoder(data);
       const msgType = decoding.readVarUint(decoder);
 
@@ -223,7 +230,9 @@ wss.on("connection", async (ws, req) => {
         });
       }
     } catch (err) {
-      console.error("[WS] message error:", err.message);
+      console.error(
+        `[WS] message error (userId=${userId}, len=${buf?.length ?? "?"}): ${err.message}`,
+      );
     }
   });
 
@@ -234,13 +243,30 @@ wss.on("connection", async (ws, req) => {
       `[WS] Disconnected: userId=${userId} room=${roomName} remaining=${room.clients.size}`,
     );
 
-    // Remove awareness for the disconnecting client
+    // Remove awareness for the disconnecting client and broadcast the removal
     if (ws.yjsClientId) {
       awarenessProtocol.removeAwarenessStates(
         room.awareness,
         [ws.yjsClientId],
         "disconnect",
       );
+      // Broadcast the updated awareness (with the departed peer removed) to others
+      const remainingIds = Array.from(room.awareness.getStates().keys());
+      if (room.clients.size > 0) {
+        const enc = encoding.createEncoder();
+        encoding.writeVarUint(enc, messageAwareness);
+        encoding.writeVarUint8Array(
+          enc,
+          awarenessProtocol.encodeAwarenessUpdate(
+            room.awareness,
+            remainingIds.length > 0 ? remainingIds : [ws.yjsClientId],
+          ),
+        );
+        const msg = encoding.toUint8Array(enc);
+        room.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) client.send(msg);
+        });
+      }
     }
 
     // If room is empty, close it after 30s (give time for reconnect)

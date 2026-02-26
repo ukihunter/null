@@ -108,7 +108,17 @@ const Page = () => {
     handleRenameFolder,
   } = useFileExplorer();
 
-  // Re-bind the editor to Yjs whenever the active file or session changes
+  // Cleanup Yjs binding when page unmounts (navigation away)
+  useEffect(() => {
+    return () => {
+      if (collabUnbindRef.current) {
+        collabUnbindRef.current();
+        collabUnbindRef.current = null;
+      }
+    };
+  }, []);
+
+  // Re-bind when active file or session changes (editor already mounted)
   useEffect(() => {
     if (collabUnbindRef.current) {
       collabUnbindRef.current();
@@ -122,16 +132,21 @@ const Page = () => {
     }
   }, [activeSessionKey, activeFileId, bindEditorToYjs]);
 
+  // Called when Monaco editor instance is ready
   const handleEditorMount = useCallback(
     (editor: any) => {
       collabEditorRef.current = editor;
+      // Trigger the re-bind effect by forcing a state read via ref
+      // (the effect above already handles bind; just ensure ref is set first)
       if (activeSessionKey && activeFileId) {
-        if (collabUnbindRef.current) collabUnbindRef.current();
+        if (collabUnbindRef.current) {
+          collabUnbindRef.current();
+          collabUnbindRef.current = null;
+        }
         collabUnbindRef.current = bindEditorToYjs(editor, activeFileId);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeSessionKey, activeFileId],
+    [activeSessionKey, activeFileId, bindEditorToYjs],
   );
 
   const {
