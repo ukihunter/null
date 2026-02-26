@@ -218,7 +218,7 @@ export function useCollaboration({
     const awareness = new awarenessProtocol.Awareness(ydoc);
     awarenessRef.current = awareness;
 
-    // Set local state
+    // Set local awareness state
     awareness.setLocalState({
       user: { id: userId, name: userName, color },
     });
@@ -228,56 +228,76 @@ export function useCollaboration({
     wsRef.current = ws;
     ws.binaryType = "arraybuffer";
 
+    // Track whether this effect-run is still the active one
+    let active = true;
+
     ws.onopen = () => {
+      if (!active) return;
       setConnected(true);
+
       // Send sync step 1
-      const enc = encoding.createEncoder();
-      encoding.writeVarUint(enc, MSG_SYNC);
-      syncProtocol.writeSyncStep1(enc, ydoc);
-      ws.send(encoding.toUint8Array(enc));
+      try {
+        const enc = encoding.createEncoder();
+        encoding.writeVarUint(enc, MSG_SYNC);
+        syncProtocol.writeSyncStep1(enc, ydoc);
+        ws.send(encoding.toUint8Array(enc));
+      } catch (e) {
+        console.error("[Collab] error sending sync step1:", e);
+      }
 
       // Send initial awareness
-      const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(
-        awareness,
-        [ydoc.clientID],
-      );
-      const enc2 = encoding.createEncoder();
-      encoding.writeVarUint(enc2, MSG_AWARENESS);
-      encoding.writeVarUint8Array(enc2, awarenessUpdate);
-      ws.send(encoding.toUint8Array(enc2));
-    };
-
-    ws.onclose = () => setConnected(false);
-
-    ws.onmessage = (event) => {
-      const data = new Uint8Array(event.data as ArrayBuffer);
-      const decoder = decoding.createDecoder(data);
-      const msgType = decoding.readVarUint(decoder);
-
-      if (msgType === MSG_SYNC) {
-        const replyEncoder = encoding.createEncoder();
-        encoding.writeVarUint(replyEncoder, MSG_SYNC);
-        const syncType = syncProtocol.readSyncMessage(
-          decoder,
-          replyEncoder,
-          ydoc,
-          "remote",
+      try {
+        const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(
+          awareness,
+          [ydoc.clientID],
         );
-        // Only reply for step 1 (type 0) — step 2 / update need no response
-        if (syncType === 0) {
-          ws.send(encoding.toUint8Array(replyEncoder));
-        }
-      } else if (msgType === MSG_AWARENESS) {
-        const update = decoding.readVarUint8Array(decoder);
-        awarenessProtocol.applyAwarenessUpdate(awareness, update, null);
-      } else if (msgType === MSG_SIGNAL) {
-        const from = decoding.readVarString(decoder);
-        const payload = decoding.readVarString(decoder);
-        signalHandlers.current.forEach((handler) => handler(from, payload));
+        const enc2 = encoding.createEncoder();
+        encoding.writeVarUint(enc2, MSG_AWARENESS);
+        encoding.writeVarUint8Array(enc2, awarenessUpdate);
+        ws.send(encoding.toUint8Array(enc2));
+      } catch (e) {
+        console.error("[Collab] error sending initial awareness:", e);
       }
     };
 
-    // Awareness → peers list
+    ws.onclose = () => {
+      if (active) setConnected(false);
+    };
+
+    ws.onmessage = (event) => {
+      if (!active) return;
+      try {
+        const data = new Uint8Array(event.data as ArrayBuffer);
+        const decoder = decoding.createDecoder(data);
+        const msgType = decoding.readVarUint(decoder);
+
+        if (msgType === MSG_SYNC) {
+          const replyEncoder = encoding.createEncoder();
+          encoding.writeVarUint(replyEncoder, MSG_SYNC);
+          const syncType = syncProtocol.readSyncMessage(
+            decoder,
+            replyEncoder,
+            ydoc,
+            "remote",
+          );
+          // Reply only for step 1 — step 2 and updates need no response
+          if (syncType === 0) {
+            ws.send(encoding.toUint8Array(replyEncoder));
+          }
+        } else if (msgType === MSG_AWARENESS) {
+          const update = decoding.readVarUint8Array(decoder);
+          awarenessProtocol.applyAwarenessUpdate(awareness, update, "remote");
+        } else if (msgType === MSG_SIGNAL) {
+          const from = decoding.readVarString(decoder);
+          const payload = decoding.readVarString(decoder);
+          signalHandlers.current.forEach((handler) => handler(from, payload));
+        }
+      } catch (e) {
+        console.error("[Collab] message decode error:", e);
+      }
+    };
+
+    // Awareness → peers list (on change from remote)
     const updatePeers = () => {
       const states = awareness.getStates();
       const list: Peer[] = [];
@@ -292,21 +312,61 @@ export function useCollaboration({
       });
       setPeers(list);
     };
-
     awareness.on("change", updatePeers);
 
-    // Forward doc updates to server
-    ydoc.on("update", (update: Uint8Array, origin: unknown) => {
-      if (origin === "remote" || !ws || ws.readyState !== WebSocket.OPEN)
+    // Awareness → send local changes to server (cursor moves, etc.)
+    const sendAwarenessUpdate = ({
+      added,
+      updated,
+      removed,
+    }: {
+      added: number[];
+      updated: number[];
+      removed: number[];
+    }) => {
+      if (!active || ws.readyState !== WebSocket.OPEN) return;
+      const changedClients = added.concat(updated).concat(removed);
+      // Only forward if it includes our own clientID (local changes)
+      if (!changedClients.includes(ydoc.clientID)) return;
+      try {
+        const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(
+          awareness,
+          [ydoc.clientID],
+        );
+        const enc = encoding.createEncoder();
+        encoding.writeVarUint(enc, MSG_AWARENESS);
+        encoding.writeVarUint8Array(enc, awarenessUpdate);
+        ws.send(encoding.toUint8Array(enc));
+      } catch (e) {
+        console.error("[Collab] error sending awareness update:", e);
+      }
+    };
+    awareness.on("update", sendAwarenessUpdate);
+
+    // Forward local doc updates to server
+    const sendDocUpdate = (update: Uint8Array, origin: unknown) => {
+      if (origin === "remote" || !active || ws.readyState !== WebSocket.OPEN)
         return;
-      const enc = encoding.createEncoder();
-      encoding.writeVarUint(enc, MSG_SYNC);
-      syncProtocol.writeUpdate(enc, update);
-      ws.send(encoding.toUint8Array(enc));
-    });
+      try {
+        const enc = encoding.createEncoder();
+        encoding.writeVarUint(enc, MSG_SYNC);
+        syncProtocol.writeUpdate(enc, update);
+        ws.send(encoding.toUint8Array(enc));
+      } catch (e) {
+        console.error("[Collab] error sending doc update:", e);
+      }
+    };
+    ydoc.on("update", sendDocUpdate);
 
     return () => {
+      active = false;
       awareness.off("change", updatePeers);
+      awareness.off("update", sendAwarenessUpdate);
+      ydoc.off("update", sendDocUpdate);
+      // Null out handlers BEFORE closing so stale events don't fire
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
       awareness.destroy();
       ydoc.destroy();
       ws.close();
@@ -316,8 +376,17 @@ export function useCollaboration({
       setConnected(false);
       setPeers([]);
     };
+    // Only reconnect when the room changes — userId/userName are updated via awareness separately
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionKey, userId, userName]);
+  }, [sessionKey]);
+
+  // Update local awareness state when userId/userName changes without reconnecting
+  useEffect(() => {
+    if (!awarenessRef.current) return;
+    awarenessRef.current.setLocalState({
+      user: { id: userId, name: userName, color },
+    });
+  }, [userId, userName, color]);
 
   // ── Bind cursor tracking to Monaco ────────────────────
   useEffect(() => {

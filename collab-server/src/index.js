@@ -161,12 +161,23 @@ wss.on("connection", async (ws, req) => {
   ws.on("message", (rawData) => {
     let buf;
     try {
-      // Safely convert Node.js Buffer (pool slice) to plain Uint8Array
-      buf = Buffer.isBuffer(rawData)
-        ? rawData
-        : Buffer.isBuffer(rawData[0])
-          ? Buffer.concat(rawData) // Buffer[] (fragmented)
-          : Buffer.from(rawData);
+      // Safely normalise to a contiguous Buffer
+      if (Buffer.isBuffer(rawData)) {
+        buf = rawData;
+      } else if (Array.isArray(rawData)) {
+        buf = Buffer.concat(rawData); // fragmented frames
+      } else {
+        buf = Buffer.from(rawData);   // ArrayBuffer or other
+      }
+
+      if (buf.length < 2) {
+        console.warn(
+          `[WS] ignoring short message (userId=${userId}, len=${buf.length}, hex=${buf.toString("hex")})`,
+        );
+        return;
+      }
+
+      // Use buf directly — lib0 decoding accepts Buffer (it has byteLength & indexing)
       const data = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
       const decoder = decoding.createDecoder(data);
       const msgType = decoding.readVarUint(decoder);
