@@ -70,6 +70,7 @@ export function useCollaboration({
   const awarenessRef = useRef<awarenessProtocol.Awareness | null>(null);
   const [peers, setPeers] = useState<Peer[]>([]);
   const [connected, setConnected] = useState(false);
+  const [synced, setSynced] = useState(false); // true once server step2 received
   const monacoDecorations = useRef<string[]>([]);
   const suppressLocalRef = useRef(false);
   const color = userColor ?? getColor(userId);
@@ -284,6 +285,10 @@ export function useCollaboration({
           if (syncType === 0) {
             ws.send(encoding.toUint8Array(replyEncoder));
           }
+          // Step 2 received — server sync complete
+          if (syncType === 1 && active) {
+            setSynced(true);
+          }
         } else if (msgType === MSG_AWARENESS) {
           const update = decoding.readVarUint8Array(decoder);
           awarenessProtocol.applyAwarenessUpdate(awareness, update, "remote");
@@ -375,6 +380,7 @@ export function useCollaboration({
       awarenessRef.current = null;
       setConnected(false);
       setPeers([]);
+      setSynced(false);
     };
     // Only reconnect when the room changes — userId/userName are updated via awareness separately
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -405,6 +411,7 @@ export function useCollaboration({
 
   return {
     connected,
+    synced,
     peers,
     sendSignal,
     onSignal,

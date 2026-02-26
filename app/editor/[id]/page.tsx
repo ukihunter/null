@@ -1,7 +1,7 @@
 "use client";
 
 import React, { use, useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/features/edditor/hook/useEditor";
@@ -81,12 +81,14 @@ import { useCollaborationContext } from "@/features/collaboration/CollaborationC
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { editorData, templateData, error, isLoading, saveTemplateData } =
     useEditor(id ?? "");
 
   const aiSuggestion = useAISuggestion();
 
-  const { activeSessionKey, bindEditorToYjs } = useCollaborationContext();
+  const { activeSessionKey, synced, startSession, bindEditorToYjs } = useCollaborationContext();
   const collabEditorRef = useRef<any>(null);
   const collabUnbindRef = useRef<(() => void) | null>(null);
 
@@ -108,6 +110,22 @@ const Page = () => {
     handleRenameFolder,
   } = useFileExplorer();
 
+  // Reset file explorer state when navigating to a different editor session
+  // Prevents stale activeFileId from a previous session causing wrong Yjs binding
+  useEffect(() => {
+    closeAllFiles();
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-join collaboration session from URL param (?joinSession=KEY)
+  // This fires AFTER the page mounts, eliminating the startSession+router.push race
+  useEffect(() => {
+    const key = searchParams.get("joinSession");
+    if (!key || !id) return;
+    startSession(key);
+    // Remove the param from the URL without a navigation
+    router.replace(`/editor/${id}`);
+  }, [searchParams, startSession, router, id]);
+
   // Cleanup Yjs binding when page unmounts (navigation away)
   useEffect(() => {
     return () => {
@@ -118,27 +136,29 @@ const Page = () => {
     };
   }, []);
 
-  // Re-bind when active file or session changes (editor already mounted)
+  // Re-bind when active file / session / sync state changes (editor already mounted)
+  // Waits for `synced` so we never seed an empty yText before the server doc arrives.
   useEffect(() => {
     if (collabUnbindRef.current) {
       collabUnbindRef.current();
       collabUnbindRef.current = null;
     }
-    if (activeSessionKey && collabEditorRef.current && activeFileId) {
+    if (activeSessionKey && synced && collabEditorRef.current && activeFileId) {
       collabUnbindRef.current = bindEditorToYjs(
         collabEditorRef.current,
         activeFileId,
       );
     }
-  }, [activeSessionKey, activeFileId, bindEditorToYjs]);
+  }, [activeSessionKey, synced, activeFileId, bindEditorToYjs]);
 
   // Called when Monaco editor instance is ready
   const handleEditorMount = useCallback(
     (editor: any) => {
       collabEditorRef.current = editor;
-      // Trigger the re-bind effect by forcing a state read via ref
-      // (the effect above already handles bind; just ensure ref is set first)
-      if (activeSessionKey && activeFileId) {
+      // Only bind once the Yjs doc is synced from the server.
+      // The bind effect above will also fire when synced flips to true,
+      // so this is just a fast-path if synced is already true.
+      if (activeSessionKey && synced && activeFileId) {
         if (collabUnbindRef.current) {
           collabUnbindRef.current();
           collabUnbindRef.current = null;
@@ -146,7 +166,7 @@ const Page = () => {
         collabUnbindRef.current = bindEditorToYjs(editor, activeFileId);
       }
     },
-    [activeSessionKey, activeFileId, bindEditorToYjs],
+    [activeSessionKey, synced, activeFileId, bindEditorToYjs],
   );
 
   const {

@@ -19,6 +19,7 @@ interface CollaborationContextValue {
   endSession: () => void;
   // Collab state
   connected: boolean;
+  synced: boolean;
   peers: { userId: string; name: string; color: string }[];
   // Voice
   inCall: boolean;
@@ -49,7 +50,7 @@ export function CollaborationProvider({
 
   const [activeSessionKey, setActiveSessionKey] = useState<string | null>(null);
 
-  const { connected, peers, sendSignal, onSignal, bindEditorToYjs } =
+  const { connected, synced, peers, sendSignal, onSignal, bindEditorToYjs } =
     useCollaboration({
       sessionKey: activeSessionKey ?? "",
       userId,
@@ -79,6 +80,7 @@ export function CollaborationProvider({
         startSession,
         endSession,
         connected,
+        synced,
         peers,
         inCall,
         muted,

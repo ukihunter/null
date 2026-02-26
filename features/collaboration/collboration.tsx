@@ -105,9 +105,12 @@ const CollaborationSessionButtons = ({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not join session");
-      startSession(joinKey.trim().toUpperCase()); // connect to collab WS
       toast.success("Joining session…");
-      router.push(`/editor/${data.edditorSessionId}`);
+      // Navigate with the key as a URL param so page.tsx calls startSession
+      // AFTER the editor mounts — avoids startSession + router.push race condition.
+      router.push(
+        `/editor/${data.edditorSessionId}?joinSession=${joinKey.trim().toUpperCase()}`,
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError(msg);
