@@ -119,6 +119,7 @@ wss.on("connection", async (ws, req) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const roomName = url.searchParams.get("room");
   const userId = url.searchParams.get("userId") || "anonymous";
+  const yjsClientId = parseInt(url.searchParams.get("clientId") || "0", 10);
 
   if (!roomName) {
     ws.close(4000, "Missing room param");
@@ -129,6 +130,7 @@ wss.on("connection", async (ws, req) => {
   room.clients.add(ws);
   ws.roomName = roomName;
   ws.userId = userId;
+  ws.yjsClientId = yjsClientId;
 
   console.log(
     `[WS] Connected: userId=${userId} room=${roomName} total=${room.clients.size}`,
@@ -165,21 +167,27 @@ wss.on("connection", async (ws, req) => {
       if (msgType === messageSync) {
         const replyEncoder = encoding.createEncoder();
         encoding.writeVarUint(replyEncoder, messageSync);
-        const hasReply = syncProtocol.readSyncMessage(
+        const syncType = syncProtocol.readSyncMessage(
           decoder,
           replyEncoder,
           room.doc,
           ws,
         );
-        if (hasReply) ws.send(encoding.toUint8Array(replyEncoder));
 
-        // Broadcast update to all other clients
-        const update = encoding.toUint8Array(replyEncoder);
-        room.clients.forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(data); // forward raw update
-          }
-        });
+        // Step 1 (type 0): reply with step 2 containing all missing updates
+        if (syncType === 0) {
+          ws.send(encoding.toUint8Array(replyEncoder));
+        }
+
+        // Update (type 2): broadcast raw message to all other clients
+        if (syncType === 2) {
+          room.clients.forEach((client) => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              client.send(data);
+            }
+          });
+        }
+        // Step 2 (type 1): already applied to doc, no further action needed
       } else if (msgType === messageAwareness) {
         const awarenessUpdate = decoding.readVarUint8Array(decoder);
         awarenessProtocol.applyAwarenessUpdate(
@@ -226,12 +234,14 @@ wss.on("connection", async (ws, req) => {
       `[WS] Disconnected: userId=${userId} room=${roomName} remaining=${room.clients.size}`,
     );
 
-    // Remove awareness
-    awarenessProtocol.removeAwarenessStates(
-      room.awareness,
-      [room.doc.clientID],
-      "disconnect",
-    );
+    // Remove awareness for the disconnecting client
+    if (ws.yjsClientId) {
+      awarenessProtocol.removeAwarenessStates(
+        room.awareness,
+        [ws.yjsClientId],
+        "disconnect",
+      );
+    }
 
     // If room is empty, close it after 30s (give time for reconnect)
     if (room.clients.size === 0) {

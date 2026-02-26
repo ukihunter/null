@@ -223,7 +223,7 @@ export function useCollaboration({
       user: { id: userId, name: userName, color },
     });
 
-    const wsUrl = `${COLLAB_SERVER_URL}/?room=${encodeURIComponent(sessionKey)}&userId=${encodeURIComponent(userId)}`;
+    const wsUrl = `${COLLAB_SERVER_URL}/?room=${encodeURIComponent(sessionKey)}&userId=${encodeURIComponent(userId)}&clientId=${ydoc.clientID}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.binaryType = "arraybuffer";
@@ -257,13 +257,16 @@ export function useCollaboration({
       if (msgType === MSG_SYNC) {
         const replyEncoder = encoding.createEncoder();
         encoding.writeVarUint(replyEncoder, MSG_SYNC);
-        const hasReply = syncProtocol.readSyncMessage(
+        const syncType = syncProtocol.readSyncMessage(
           decoder,
           replyEncoder,
           ydoc,
-          null,
+          "remote",
         );
-        if (hasReply) ws.send(encoding.toUint8Array(replyEncoder));
+        // Only reply for step 1 (type 0) — step 2 / update need no response
+        if (syncType === 0) {
+          ws.send(encoding.toUint8Array(replyEncoder));
+        }
       } else if (msgType === MSG_AWARENESS) {
         const update = decoding.readVarUint8Array(decoder);
         awarenessProtocol.applyAwarenessUpdate(awareness, update, null);
