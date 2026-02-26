@@ -97,7 +97,10 @@ const Page = () => {
       collabUnbindRef.current = null;
     }
     if (activeSessionKey && collabEditorRef.current && activeFileId) {
-      collabUnbindRef.current = bindEditorToYjs(collabEditorRef.current, activeFileId);
+      collabUnbindRef.current = bindEditorToYjs(
+        collabEditorRef.current,
+        activeFileId,
+      );
     }
   }, [activeSessionKey, activeFileId, bindEditorToYjs]);
 
