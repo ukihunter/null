@@ -90,6 +90,24 @@ const Page = () => {
   const collabEditorRef = useRef<any>(null);
   const collabUnbindRef = useRef<(() => void) | null>(null);
 
+  const {
+    activeFileId,
+    closeAllFiles,
+    openFile,
+    closeFile,
+    openFiles,
+    setActiveFileId,
+    setTemplateData,
+    updateFileContent,
+    setOpenFiles,
+    handleAddFile,
+    handleAddFolder,
+    handleDeleteFile,
+    handleDeleteFolder,
+    handleRenameFile,
+    handleRenameFolder,
+  } = useFileExplorer();
+
   // Re-bind the editor to Yjs whenever the active file or session changes
   useEffect(() => {
     if (collabUnbindRef.current) {
@@ -115,24 +133,6 @@ const Page = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeSessionKey, activeFileId],
   );
-
-  const {
-    activeFileId,
-    closeAllFiles,
-    openFile,
-    closeFile,
-    openFiles,
-    setActiveFileId,
-    setTemplateData,
-    updateFileContent,
-    setOpenFiles,
-    handleAddFile,
-    handleAddFolder,
-    handleDeleteFile,
-    handleDeleteFolder,
-    handleRenameFile,
-    handleRenameFolder,
-  } = useFileExplorer();
 
   const {
     serverUrl,
