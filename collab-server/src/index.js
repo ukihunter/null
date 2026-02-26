@@ -165,8 +165,8 @@ wss.on("connection", async (ws, req) => {
       buf = Buffer.isBuffer(rawData)
         ? rawData
         : Buffer.isBuffer(rawData[0])
-        ? Buffer.concat(rawData)   // Buffer[] (fragmented)
-        : Buffer.from(rawData);
+          ? Buffer.concat(rawData) // Buffer[] (fragmented)
+          : Buffer.from(rawData);
       const data = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
       const decoder = decoding.createDecoder(data);
       const msgType = decoding.readVarUint(decoder);
