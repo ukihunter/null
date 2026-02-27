@@ -1,11 +1,11 @@
 "use client";
 
-import React, { use, useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/features/edditor/hook/useEditor";
-import TemplateFileTree from "@/features/edditor/components/template-file-tree";
+//import TemplateFileTree from "@/features/edditor/components/template-file-tree";
 import { useFileExplorer } from "@/features/edditor/hook/useFileExpolrer";
 
 import {
@@ -20,7 +20,7 @@ import {
   X,
   Settings,
   BookmarkPlus,
-  BotIcon,
+  // BotIcon,
   Files,
   Search,
   GitBranch,
@@ -75,13 +75,14 @@ import {
 } from "@/features/edditor/components/activity-panels";
 import ToggelAI from "@/features/edditor/components/toggel-ai";
 import { useAISuggestion } from "@/features/ai-chat/hooks/useAiSuggesion";
-import { editor } from "monaco-editor";
+//import { editor } from "monaco-editor";
 //import { error } from "console";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
-  const { editorData, templateData, error, isLoading, saveTemplateData } =
-    useEditor(id ?? "");
+  const { editorData, templateData, error, saveTemplateData } = useEditor(
+    id ?? "",
+  );
 
   const aiSuggestion = useAISuggestion();
 
@@ -619,7 +620,7 @@ const Page = () => {
                         <CodeEditor
                           activeFile={activeFile}
                           content={activeFile?.content || ""}
-                          onContentChange={async (value) => {
+                          onContentChange={async (value: string) => {
                             if (activeFileId && activeFile) {
                               updateFileContent(activeFileId, value);
 
@@ -649,15 +650,18 @@ const Page = () => {
                           suggestion={aiSuggestion.suggestion}
                           suggestionLoading={aiSuggestion.isLoading}
                           suggestionPosition={aiSuggestion.position}
-                          onAcceptSuggestion={(editor, monaco) =>
-                            aiSuggestion.acceptSuggestion(editor, monaco)
-                          }
-                          onTriggerSuggestion={(type, editor) =>
-                            aiSuggestion.fetchSuggestion(type, editor)
-                          }
-                          onRejectSuggestion={(type, editor) =>
-                            aiSuggestion.rejectSuggestion(type, editor)
-                          }
+                          onAcceptSuggestion={(
+                            editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                            monaco: typeof import("monaco-editor"),
+                          ) => aiSuggestion.acceptSuggestion(editor, monaco)}
+                          onTriggerSuggestion={(
+                            type: string,
+                            editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                          ) => aiSuggestion.fetchSuggestion(type, editor)}
+                          onRejectSuggestion={(
+                            type: string,
+                            editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                          ) => aiSuggestion.rejectSuggestion(editor)}
                         />
                       </ResizablePanel>
                       {isPreviewVisible && (
@@ -682,7 +686,11 @@ const Page = () => {
                 </div>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-4">
-                  <AlertCircle className="size-16 text-muted-foreground" />
+                  <img
+                    src="/null-defult.png"
+                    alt="No files open"
+                    className="h-50 w-50 opacity-10"
+                  />
                   <p className="text-center text-sm text-muted-foreground">
                     No files are open. Please select a file from the file tree
                     to start editing.
