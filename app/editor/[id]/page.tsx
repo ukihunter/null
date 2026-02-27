@@ -576,15 +576,22 @@ const Page = () => {
                               </div>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button
-                                    className="absolute right-1 top-1 rounded p-1 opacity-0 hover:bg-red-500 group-hover:opacity-100"
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    className="absolute right-1 top-1 cursor-pointer rounded p-1 opacity-0 hover:bg-red-500 group-hover:opacity-100"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       closeFile(file.id);
                                     }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        closeFile(file.id);
+                                      }
+                                    }}
                                   >
                                     <X className="size-4" />
-                                  </button>
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent>Close File</TooltipContent>
                               </Tooltip>

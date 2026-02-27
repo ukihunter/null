@@ -54,7 +54,8 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Project } from "../types";
+import { Project, Project, Project } from "../types";
+import { EdditorSession } from "@prisma/client";
 
 interface ProjectTableProps {
   projects: Project[];
@@ -63,7 +64,7 @@ interface ProjectTableProps {
     data: { title: string; description: string },
   ) => Promise<void>;
   onDeleteProject?: (id: string) => Promise<void>;
-  onDuplicateProject?: (id: string) => Promise<void>;
+  onDuplicateProject?: (id: string) => Promise<EdditorSession>;
   onMarkasFavorite?: (id: string) => Promise<void>;
 }
 

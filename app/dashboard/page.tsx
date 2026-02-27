@@ -29,8 +29,27 @@ const page = async () => {
           />
         ) : (
           <ProjectTable
-            //@ts-expect-error TS(2345) FIXME: Argument of type 'EdditorSession[] | null' is not assignable to parameter of type 'Project[]'.
-            projects={edditors || []}
+            projects={
+              edditors?.map((e) => ({
+                id: e.id,
+                title: e.title ?? "Untitled",
+                description: e.description ?? "",
+                template: e.template,
+                createdAt: e.createdAt,
+                updatedAt: e.updatedAt,
+                userId: e.userId ?? "unknown",
+                user: {
+                  id: e.user?.id ?? "unknown",
+                  name: e.user?.name ?? "Unknown",
+                  email: e.user?.email ?? "",
+                  image: e.user?.image ?? "",
+                  role: (e.user as any)?.role ?? "user",
+                  createdAt: (e.user as any)?.createdAt ?? new Date(),
+                  updatedAt: (e.user as any)?.updatedAt ?? new Date(),
+                },
+                Starmark: e.starmark ?? [],
+              })) || []
+            }
             onDeleteProject={deleteEdditorSession}
             onUpdateProject={editprojectById}
             onDuplicateProject={duplicateEdditorSession}
