@@ -54,7 +54,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Project, Project, Project } from "../types";
+import { Project } from "../types";
 import { EdditorSession } from "@prisma/client";
 
 interface ProjectTableProps {
