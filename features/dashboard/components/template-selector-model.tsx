@@ -29,6 +29,7 @@ import {
 import Image from "next/image";
 import { useState } from "react";
 import EmptyState from "@/components/ui/empty-state";
+import { useRouter } from "next/navigation";
 
 // TemplateSelectionModal.tsx
 type TemplateSelectionModalProps = {
@@ -46,7 +47,7 @@ type TemplateSelectionModalProps = {
       | "REACT_NATIVE"
       | "SVELTE";
     description?: string;
-  }) => void;
+  }) => Promise<string>; // Return project ID after creation
 };
 
 interface TemplateOption {
@@ -173,6 +174,7 @@ const TemplateSelectorModel = ({
   onClose,
   onSubmit,
 }: TemplateSelectionModalProps) => {
+  const router = useRouter();
   const [step, setStep] = useState<"select" | "configure">("select");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -186,7 +188,7 @@ const TemplateSelectorModel = ({
       template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
+        tag.toLowerCase().includes(searchQuery.toLowerCase()),
       );
 
     const matchesCategory =
@@ -205,7 +207,7 @@ const TemplateSelectorModel = ({
     }
   };
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (selectedTemplate) {
       const templateMap: Record<
         string,
@@ -229,17 +231,20 @@ const TemplateSelectorModel = ({
       };
 
       const template = templates.find((t) => t.id === selectedTemplate);
-      onSubmit({
+      // Await project creation and get the new project ID
+      const projectId = await onSubmit({
         title: projectName || `New ${template?.name} Project`,
         template: templateMap[selectedTemplate] || "REACT",
         description: template?.description,
       });
 
       console.log(
-        `Creating ${projectName || "new project"} with template: ${
-          template?.name
-        }`
+        `Creating ${projectName || "new project"} with template: ${template?.name}`,
       );
+
+      if (projectId) {
+        router.push(`/editor/${projectId}`);
+      }
       onClose();
       // Reset state for next time
       setStep("select");

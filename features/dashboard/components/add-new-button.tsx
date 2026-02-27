@@ -9,14 +9,12 @@ import { useState } from "react";
 
 import TemplateselectionModel from "./template-selector-model";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { createEdditorsession } from "../actions";
 import { Templates } from "@prisma/client";
 
 const Addnewbutton = () => {
   const [isModelOpen, setIsModelOpen] = useState(false);
 
-  const router = useRouter();
   const handleSubmit = async (data: {
     title: string;
     template:
@@ -39,12 +37,10 @@ const Addnewbutton = () => {
       template: template as Templates,
       userId: "", // This is ignored - user is fetched from session in the action
     });
-    toast("Edditor created successfully");
-    // Here you would typically handle the creation of a new playground
-    // with the selected template data
+    toast("Editor created successfully");
     console.log("Creating new session:", data);
     setIsModelOpen(false);
-    router.push(`/edditor/${res?.id}`);
+    return res?.id ?? ""; // Return the project ID so template-selector-model can navigate
   };
   return (
     <>
