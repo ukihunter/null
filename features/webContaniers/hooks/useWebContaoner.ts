@@ -16,12 +16,12 @@ interface UseWebContainerReturn {
 }
 
 // Global singleton to prevent multiple instances
-let webContainerInstance: WebContainer | null = null;
+let webcontainerInstance: WebContainer | null = null;
 let bootPromise: Promise<WebContainer> | null = null;
 
-async function getWebContainerInstance(): Promise<WebContainer> {
-  if (webContainerInstance) {
-    return webContainerInstance;
+async function getWebContainer(): Promise<WebContainer> {
+  if (webcontainerInstance) {
+    return webcontainerInstance;
   }
 
   if (bootPromise) {
@@ -29,9 +29,10 @@ async function getWebContainerInstance(): Promise<WebContainer> {
   }
 
   bootPromise = WebContainer.boot();
-  webContainerInstance = await bootPromise;
+  webcontainerInstance = await bootPromise;
   bootPromise = null;
-  return webContainerInstance;
+
+  return webcontainerInstance;
 }
 
 export const useWebContainer = ({
@@ -48,7 +49,7 @@ export const useWebContainer = ({
     async function initializeWebContainer() {
       try {
         setIsLoading(true);
-        const containerInstance = await getWebContainerInstance();
+        const containerInstance = await getWebContainer();
 
         if (!mounted) return;
         setInstance(containerInstance);
@@ -58,7 +59,7 @@ export const useWebContainer = ({
         setError(
           err instanceof Error
             ? err
-            : new Error("Failed to initialize WebContainer")
+            : new Error("Failed to initialize WebContainer"),
         );
       } finally {
         if (mounted) {
@@ -94,13 +95,13 @@ export const useWebContainer = ({
         throw new Error(`Failed to write file ${path}: ${errorMessage}`);
       }
     },
-    [instance]
+    [instance],
   );
 
   const destroy = useCallback(async (): Promise<void> => {
-    if (webContainerInstance) {
-      await webContainerInstance.teardown();
-      webContainerInstance = null;
+    if (webcontainerInstance) {
+      await webcontainerInstance.teardown();
+      webcontainerInstance = null;
       setInstance(null);
       setServerUrl(null);
     }

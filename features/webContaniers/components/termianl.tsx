@@ -17,12 +17,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Copy, Trash2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
-
+import type { WebContainer } from "@webcontainer/api";
 interface TerminalProps {
   webcontainerUrl?: string;
   className?: string;
   theme?: "dark" | "light";
-  webContainerInstance?: any;
+  WebContainer?: WebContainer | null;
 }
 
 // Define the methods that will be exposed through the ref
@@ -33,10 +33,7 @@ export interface TerminalRef {
 }
 
 const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
-  (
-    { webcontainerUrl, className, theme = "dark", webContainerInstance },
-    ref
-  ) => {
+  ({ webcontainerUrl, className, theme = "dark", WebContainer }, ref) => {
     const terminalRef = useRef<HTMLDivElement>(null);
     const term = useRef<Terminal | null>(null);
     const fitAddon = useRef<FitAddon | null>(null);
@@ -129,7 +126,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
 
     const executeCommand = useCallback(
       async (command: string) => {
-        if (!webContainerInstance || !term.current) return;
+        if (!WebContainer || !term.current) return;
 
         // Add to history
         if (
@@ -168,7 +165,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
 
           // Execute in WebContainer
           term.current.writeln("");
-          const process = await webContainerInstance.spawn(cmd, args, {
+          const process = await WebContainer.spawn(cmd, args, {
             terminal: {
               cols: term.current.cols,
               rows: term.current.rows,
@@ -185,7 +182,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
                   term.current.write(data);
                 }
               },
-            })
+            }),
           );
 
           // Wait for process to complete
@@ -202,7 +199,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
           currentProcess.current = null;
         }
       },
-      [webContainerInstance, writePrompt]
+      [WebContainer, writePrompt],
     );
 
     const handleTerminalInput = useCallback(
@@ -248,7 +245,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               const historyCommand =
                 commandHistory.current[historyIndex.current];
               term.current.write(
-                "\r$ " + " ".repeat(currentLine.current.length) + "\r$ "
+                "\r$ " + " ".repeat(currentLine.current.length) + "\r$ ",
               );
               term.current.write(historyCommand);
               currentLine.current = historyCommand;
@@ -263,7 +260,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
                 const historyCommand =
                   commandHistory.current[historyIndex.current];
                 term.current.write(
-                  "\r$ " + " ".repeat(currentLine.current.length) + "\r$ "
+                  "\r$ " + " ".repeat(currentLine.current.length) + "\r$ ",
                 );
                 term.current.write(historyCommand);
                 currentLine.current = historyCommand;
@@ -271,7 +268,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
               } else {
                 historyIndex.current = -1;
                 term.current.write(
-                  "\r$ " + " ".repeat(currentLine.current.length) + "\r$ "
+                  "\r$ " + " ".repeat(currentLine.current.length) + "\r$ ",
                 );
                 currentLine.current = "";
                 cursorPosition.current = 0;
@@ -292,7 +289,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
             break;
         }
       },
-      [executeCommand, writePrompt]
+      [executeCommand, writePrompt],
     );
 
     const initializeTerminal = useCallback(() => {
@@ -335,7 +332,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
       }, 100);
 
       // Welcome message
-      terminal.writeln("🚀 WebContainer Terminal");
+      terminal.writeln(" WebContainer Terminal");
       terminal.writeln("Type 'help' for available commands");
       writePrompt();
 
@@ -343,7 +340,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
     }, [theme, handleTerminalInput, writePrompt]);
 
     const connectToWebContainer = useCallback(async () => {
-      if (!webContainerInstance || !term.current) return;
+      if (!WebContainer || !term.current) return;
 
       try {
         setIsConnected(true);
@@ -355,7 +352,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
         term.current.writeln(" Failed to connect to WebContainer");
         console.error("WebContainer connection error:", error);
       }
-    }, [webContainerInstance, writePrompt]);
+    }, [WebContainer, writePrompt]);
 
     const clearTerminal = useCallback(() => {
       if (term.current) {
@@ -440,16 +437,16 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
     }, [initializeTerminal]);
 
     useEffect(() => {
-      if (webContainerInstance && term.current && !isConnected) {
+      if (WebContainer && term.current && !isConnected) {
         connectToWebContainer();
       }
-    }, [webContainerInstance, connectToWebContainer, isConnected]);
+    }, [WebContainer, connectToWebContainer, isConnected]);
 
     return (
       <div
         className={cn(
           "flex flex-col h-full bg-background border rounded-lg overflow-hidden",
-          className
+          className,
         )}
       >
         {/* Terminal Header */}
@@ -534,7 +531,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
         </div>
       </div>
     );
-  }
+  },
 );
 
 TerminalComponent.displayName = "TerminalComponent";

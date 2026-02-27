@@ -82,12 +82,12 @@ const WebContainerPreview = ({
         try {
           const packaejsonExists = await instance.fs.readFile(
             "package.json",
-            "utf-8"
+            "utf-8",
           );
           if (packaejsonExists) {
             if (terminalRef.current?.writeToTerminal) {
               terminalRef.current.writeToTerminal(
-                " Reconnecting to existing WebContainer session...\r\n"
+                " Reconnecting to existing WebContainer session...\r\n",
               );
             }
 
@@ -95,7 +95,7 @@ const WebContainerPreview = ({
             if (serverUrl) {
               if (terminalRef.current?.writeToTerminal) {
                 terminalRef.current.writeToTerminal(
-                  ` Server already running at ${serverUrl}\r\n`
+                  ` Server already running at ${serverUrl}\r\n`,
                 );
               }
               setPreviewUrl(serverUrl);
@@ -113,11 +113,11 @@ const WebContainerPreview = ({
             // Set up server-ready listener
             instance.on("server-ready", (port: number, url: string) => {
               console.log(
-                `Reconnected to the server on port ${port} at URL: ${url}`
+                `Reconnected to the server on port ${port} at URL: ${url}`,
               );
               if (terminalRef.current?.writeToTerminal) {
                 terminalRef.current.writeToTerminal(
-                  ` Reconnected to server at ${url}\r\n`
+                  ` Reconnected to server at ${url}\r\n`,
                 );
               }
 
@@ -140,7 +140,7 @@ const WebContainerPreview = ({
                 serverProcessRef.current.kill();
                 if (terminalRef.current?.writeToTerminal) {
                   terminalRef.current.writeToTerminal(
-                    " Stopping existing server...\r\n"
+                    " Stopping existing server...\r\n",
                   );
                 }
               } catch (err) {
@@ -151,7 +151,7 @@ const WebContainerPreview = ({
             // Restart the dev server
             if (terminalRef.current?.writeToTerminal) {
               terminalRef.current.writeToTerminal(
-                " Starting development server...\r\n"
+                " Starting development server...\r\n",
               );
             }
             const startProcess = await instance.spawn("npm", ["run", "start"]);
@@ -163,7 +163,7 @@ const WebContainerPreview = ({
                     terminalRef.current.writeToTerminal(data);
                   }
                 },
-              })
+              }),
             );
             return;
           }
@@ -174,7 +174,7 @@ const WebContainerPreview = ({
         //terminal relate stuff
         if (terminalRef.current?.writeToTerminal) {
           terminalRef.current.writeToTerminal(
-            "Transforming template data..\r\n"
+            "Transforming template data..\r\n",
           );
         }
         // @ts-ignore
@@ -189,7 +189,7 @@ const WebContainerPreview = ({
 
         if (terminalRef.current?.writeToTerminal) {
           terminalRef.current.writeToTerminal(
-            "Moonting files to webContainer..\r\n"
+            "Moonting files to webContainer..\r\n",
           );
         }
 
@@ -209,7 +209,7 @@ const WebContainerPreview = ({
 
         if (terminalRef.current?.writeToTerminal) {
           terminalRef.current.writeToTerminal(
-            " Installing dependencies...\r\n"
+            " Installing dependencies...\r\n",
           );
         }
 
@@ -223,19 +223,19 @@ const WebContainerPreview = ({
                 terminalRef.current.writeToTerminal(data);
               }
             },
-          })
+          }),
         );
         const installExitCode = await installProcess.exit;
 
         if (installExitCode !== 0) {
           throw new Error(
             `Dependency installation dependency installation failed.Exit code: " +
-            ${installExitCode}`
+            ${installExitCode}`,
           );
         }
         if (terminalRef.current?.writeToTerminal) {
           terminalRef.current.writeToTerminal(
-            " Dependencies installed successfully\r\n"
+            " Dependencies installed successfully\r\n",
           );
         }
         setLoadingState((prev) => ({
@@ -272,7 +272,7 @@ const WebContainerPreview = ({
                 terminalRef.current.writeToTerminal(data);
               }
             },
-          })
+          }),
         );
       } catch (err) {
         console.error("Error setting up container:", err);
@@ -342,8 +342,8 @@ const WebContainerPreview = ({
           isComplete
             ? "text-green-600"
             : isActive
-            ? "text-blue-600"
-            : "text-gray-500"
+              ? "text-blue-600"
+              : "text-gray-500"
         }`}
       >
         {label}
@@ -385,7 +385,7 @@ const WebContainerPreview = ({
           <div className="flex-1 min-h-[300px] p-4">
             <TerminalComponent
               ref={terminalRef}
-              webContainerInstance={instance}
+              WebContainer={instance}
               theme="dark"
               className="h-full"
             />
@@ -404,7 +404,7 @@ const WebContainerPreview = ({
           <div className="h-64 border-t">
             <TerminalComponent
               ref={terminalRef}
-              webContainerInstance={instance}
+              WebContainer={instance}
               theme="dark"
               className="h-full"
             />
