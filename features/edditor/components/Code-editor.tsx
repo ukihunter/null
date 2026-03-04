@@ -33,7 +33,7 @@ const CodeEditor = ({
   onAcceptSuggestion,
   onRejectSuggestion,
   onTriggerSuggestion,
-}: PlaygroundEditorProps) => {
+}: CodeEditorProps) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const inlineCompletionProviderRef = useRef<any>(null);
@@ -452,7 +452,7 @@ const CodeEditor = ({
     editor.addCommand(monaco.KeyCode.Escape, () => {
       console.log("Escape pressed");
       if (currentSuggestionRef.current) {
-        onRejectSuggestion(editor);
+        onRejectSuggestion("escape", editor);
         clearCurrentSuggestion();
       }
     });
@@ -475,7 +475,7 @@ const CodeEditor = ({
         ) {
           console.log("Cursor moved away from suggestion, clearing");
           clearCurrentSuggestion();
-          onRejectSuggestion(editor);
+          onRejectSuggestion("cursor-move", editor);
         }
       }
 
