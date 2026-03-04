@@ -76,6 +76,7 @@ import {
 } from "@/features/edditor/components/activity-panels";
 import ToggelAI from "@/features/edditor/components/toggel-ai";
 import { useAISuggestion } from "@/features/ai-chat/hooks/useAiSuggesion";
+import { useCollaboration } from "@/features/edditor/hook/useCollaboration";
 //import { editor } from "monaco-editor";
 //import { error } from "console";
 
@@ -86,6 +87,9 @@ const Page = () => {
   );
 
   const aiSuggestion = useAISuggestion();
+
+  const collab = useCollaboration(id ?? "");
+  const broadcastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     activeFileId,
@@ -337,6 +341,22 @@ const Page = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave]);
 
+  // Listen for real-time code changes from other collaborators
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const { fileId, content } = (e as CustomEvent).detail as {
+        fileId: string;
+        content: string;
+      };
+      // Only update if the changed file is currently open
+      if (fileId === activeFileId) {
+        updateFileContent(fileId, content);
+      }
+    };
+    window.addEventListener("collab-code-change", handler);
+    return () => window.removeEventListener("collab-code-change", handler);
+  }, [activeFileId, updateFileContent]);
+
   // Error state
   if (error || containerError) {
     return (
@@ -462,7 +482,14 @@ const Page = () => {
             {sidebarOpen && activeView === "debug" && <DebugPanel />}
             {sidebarOpen && activeView === "extensions" && <ExtensionsPanel />}
             {sidebarOpen && activeView === "collaboration" && (
-              <CollaborationPanel />
+              <CollaborationPanel
+                sessionId={id ?? ""}
+                activeUsers={collab.activeUsers}
+                messages={collab.messages}
+                isConnected={collab.isConnected}
+                currentUserId={collab.currentUserId}
+                sendMessage={collab.sendMessage}
+              />
             )}
             {sidebarOpen && activeView === "account" && <AccountPanel />}
             {sidebarOpen && activeView === "settings" && <SettingsPanel />}
@@ -635,6 +662,17 @@ const Page = () => {
                             onContentChange={async (value: string) => {
                               if (activeFileId && activeFile) {
                                 updateFileContent(activeFileId, value);
+
+                                // Broadcast to collaborators (debounced 300ms)
+                                if (broadcastTimerRef.current) {
+                                  clearTimeout(broadcastTimerRef.current);
+                                }
+                                broadcastTimerRef.current = setTimeout(() => {
+                                  collab.broadcastCodeChange(
+                                    activeFileId,
+                                    value,
+                                  );
+                                }, 300);
 
                                 // Sync changes to WebContainer in real-time (for dev server HMR)
                                 if (writeFileSync && templateData && instance) {

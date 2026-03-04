@@ -13,6 +13,13 @@ import {
   MoreHorizontal,
   Trash2,
   Edit3,
+  Copy,
+  Check,
+  Send,
+  Phone,
+  PhoneOff,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,8 +35,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import TemplateNode from "./template-node";
 import { TemplateFile, TemplateFolder } from "../lib/path-to-jason";
+import type { CollabUser, ChatMessage } from "../hook/useCollaboration";
 
 interface ExplorerPanelProps {
   data: TemplateFolder;
@@ -43,12 +54,12 @@ interface ExplorerPanelProps {
     file: TemplateFile,
     newFilename: string,
     newExtension: string,
-    parentPath: string
+    parentPath: string,
   ) => void;
   onRenameFolder?: (
     folder: TemplateFolder,
     newFolderName: string,
-    parentPath: string
+    parentPath: string,
   ) => void;
 }
 
@@ -304,31 +315,268 @@ export function ExtensionsPanel() {
   );
 }
 
-export function CollaborationPanel() {
+export interface CollaborationPanelProps {
+  sessionId: string;
+  activeUsers: CollabUser[];
+  messages: ChatMessage[];
+  isConnected: boolean;
+  currentUserId: string;
+  sendMessage: (content: string) => Promise<void>;
+}
+
+export function CollaborationPanel({
+  sessionId,
+  activeUsers,
+  messages,
+  isConnected,
+  currentUserId,
+  sendMessage,
+}: CollaborationPanelProps) {
+  const [input, setInput] = React.useState("");
+  const [copied, setCopied] = React.useState(false);
+  const [voiceOpen, setVoiceOpen] = React.useState(false);
+  const [sending, setSending] = React.useState(false);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat to bottom
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const inviteUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/editor/${sessionId}`
+      : "";
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || sending) return;
+    setSending(true);
+    await sendMessage(input.trim());
+    setInput("");
+    setSending(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  function getInitials(name: string | null): string {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  function formatTime(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
-      <div className="border-b p-4">
-        <h2 className="text-sm font-semibold flex items-center gap-2">
-          <Users className="h-4 w-4" />
-          COLLABORATION
-        </h2>
+      {/* Header */}
+      <div className="border-b p-3">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-xs font-semibold uppercase flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            Collaboration
+          </h2>
+          <Badge
+            variant={isConnected ? "default" : "outline"}
+            className="text-[10px] px-1.5 py-0 h-4"
+          >
+            {isConnected ? (
+              <span className="flex items-center gap-1">
+                <Wifi className="h-2.5 w-2.5" /> Live
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <WifiOff className="h-2.5 w-2.5" /> Off
+              </span>
+            )}
+          </Badge>
+        </div>
       </div>
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-4">
+          {/* Invite Link */}
           <div>
-            <h3 className="text-sm font-medium mb-2">Active Users</h3>
-            <p className="text-sm text-muted-foreground">
-              No active collaborators
+            <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+              Invite Link
             </p>
+            <div className="flex items-center gap-1">
+              <input
+                readOnly
+                value={inviteUrl}
+                className="flex-1 min-w-0 h-7 rounded border bg-muted px-2 text-[10px] truncate"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-7 w-7 shrink-0"
+                onClick={handleCopy}
+              >
+                {copied ? (
+                  <Check className="h-3 w-3 text-green-500" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
           </div>
+
+          <Separator />
+
+          {/* Active Users */}
           <div>
-            <h3 className="text-sm font-medium mb-2">Share Session</h3>
-            <p className="text-xs text-muted-foreground">
-              Start a collaboration session to invite others
+            <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
+              Active Users ({activeUsers.length})
             </p>
+            {activeUsers.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No one else here yet
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {activeUsers.map((user) => (
+                  <div key={user.id} className="flex items-center gap-2">
+                    <div className="relative">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={user.image ?? undefined} />
+                        <AvatarFallback
+                          className="text-[9px]"
+                          style={{ backgroundColor: user.color }}
+                        >
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background bg-green-500" />
+                    </div>
+                    <span className="text-xs truncate max-w-[140px]">
+                      {user.id === currentUserId
+                        ? `${user.name} (you)`
+                        : user.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Voice Call */}
+          <div>
+            <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+              Voice Call
+            </p>
+            <Button
+              size="sm"
+              variant={voiceOpen ? "destructive" : "outline"}
+              className="w-full h-7 text-xs gap-1.5"
+              onClick={() => setVoiceOpen((v) => !v)}
+            >
+              {voiceOpen ? (
+                <>
+                  <PhoneOff className="h-3.5 w-3.5" /> Leave Call
+                </>
+              ) : (
+                <>
+                  <Phone className="h-3.5 w-3.5" /> Join Voice Call
+                </>
+              )}
+            </Button>
+            {voiceOpen && (
+              <div className="mt-2 rounded-md overflow-hidden border h-48">
+                <iframe
+                  allow="camera; microphone; fullscreen; display-capture"
+                  src={`https://meet.jit.si/null-ide-${sessionId}#config.startWithVideoMuted=true&config.prejoinPageEnabled=false&config.toolbarButtons=["microphone","hangup"]`}
+                  className="w-full h-full"
+                  title="Voice Call"
+                />
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Chat */}
+          <div>
+            <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
+              Chat
+            </p>
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {messages.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No messages yet. Say hi!
+                </p>
+              ) : (
+                messages.map((msg) => {
+                  const isOwn = msg.userId === currentUserId;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}
+                    >
+                      {!isOwn && (
+                        <span className="text-[10px] text-muted-foreground px-1">
+                          {msg.userName ?? "Anonymous"}
+                        </span>
+                      )}
+                      <div
+                        className={`max-w-[180px] rounded-lg px-2.5 py-1.5 text-xs overflow-hidden ${
+                          isOwn
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-foreground"
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                      <span className="text-[9px] text-muted-foreground px-1">
+                        {formatTime(msg.createdAt)}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
         </div>
       </ScrollArea>
+
+      {/* Chat Input */}
+      <div className="border-t p-2 flex gap-1.5">
+        <Input
+          className="h-7 text-xs"
+          placeholder="Message..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={!isConnected || sending}
+        />
+        <Button
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={handleSend}
+          disabled={!input.trim() || !isConnected || sending}
+        >
+          <Send className="h-3 w-3" />
+        </Button>
+      </div>
     </div>
   );
 }

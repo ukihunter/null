@@ -140,10 +140,14 @@ Generate suggestion:`;
 
 /**
  * Generate suggestion using AI service
+ * Tries Ollama first (local), falls back to Gemini (cloud)
  */
 async function generateSuggestion(prompt: string): Promise<string> {
+  // Try Ollama first if available
   try {
-    // Replace this with your actual AI service call
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for local
+
     const response = await fetch("http://localhost:11434/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -151,32 +155,56 @@ async function generateSuggestion(prompt: string): Promise<string> {
         model: "codellama:7b",
         prompt,
         stream: false,
-        options: {
-          temperature: 0.7,
-          num_predict: 300,
-        },
+        options: { temperature: 0.7, num_predict: 300 },
       }),
+      signal: controller.signal,
     });
 
-    if (!response.ok) {
-      throw new Error(`AI service error: ${response.statusText}`);
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      const data = await response.json();
+      let suggestion = data.response;
+      if (suggestion.includes("```")) {
+        const codeMatch = suggestion.match(/```[\w]*\n?([\s\S]*?)```/);
+        suggestion = codeMatch ? codeMatch[1].trim() : suggestion;
+      }
+      return suggestion.replace(/\|CURSOR\|/g, "").trim();
     }
+  } catch {
+    // Ollama not available — fall through to Gemini
+  }
+
+  // Fallback: Gemini
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return "// AI suggestion unavailable";
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 300 },
+        }),
+      },
+    );
+
+    if (!response.ok) return "// AI suggestion unavailable";
 
     const data = await response.json();
-    let suggestion = data.response;
+    let suggestion =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
-    // Clean up the suggestion
     if (suggestion.includes("```")) {
       const codeMatch = suggestion.match(/```[\w]*\n?([\s\S]*?)```/);
       suggestion = codeMatch ? codeMatch[1].trim() : suggestion;
     }
 
-    // Remove cursor markers if present
-    suggestion = suggestion.replace(/\|CURSOR\|/g, "").trim();
-
-    return suggestion;
-  } catch (error) {
-    console.error("AI generation error:", error);
+    return suggestion.replace(/\|CURSOR\|/g, "").trim() || "// AI suggestion unavailable";
+  } catch {
     return "// AI suggestion unavailable";
   }
 }

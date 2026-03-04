@@ -29,6 +29,10 @@ model User {
 
   starredEdditorSession StarMark[]
 
+  chatMessages ChatMessage[]
+
+  collaboratorSessions CollaboratorSession[]
+
   accounts Account[]
   role UserRole @default(USER)
   createdAt DateTime @default(now())
@@ -81,6 +85,8 @@ model EdditorSession {
   updatedAt    DateTime @updatedAt
 
   starmark StarMark[]
+  chatMessages ChatMessage[]
+  collaboratorSessions CollaboratorSession[]
   userId      String?
   user User? @relation (fields:[userId] , references: [id], onDelete: Cascade)
   templateFiles TemplatesFile[]
@@ -110,4 +116,34 @@ model StarMark {
 
 
   @@unique([userId,edditorSessionId])
+}
+
+model ChatMessage {
+  id               String         @id @default(cuid()) @map("_id")
+  content          String
+  edditorSessionId String
+  edditorSession   EdditorSession @relation(fields: [edditorSessionId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  userName         String?
+  userImage        String?
+  createdAt        DateTime       @default(now())
+}
+
+model CollaboratorSession {
+  id               String         @id @default(cuid()) @map("_id")
+  edditorSessionId String
+  edditorSession   EdditorSession @relation(fields: [edditorSessionId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation(fields: [userId], references: [id])
+  role             CollabRole     @default(EDITOR)
+  joinedAt         DateTime       @default(now())
+
+  @@unique([userId, edditorSessionId])
+}
+
+enum CollabRole {
+  OWNER
+  EDITOR
+  VIEWER
 }
