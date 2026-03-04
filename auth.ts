@@ -80,13 +80,15 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       return true;
       } catch (error) {
         console.error("[AUTH] signIn callback error:", error);
-        return false;
+        // Return true so the user can still sign in even if DB sync fails
+        return true;
       }
     },
 
     async jwt({ token }) {
       if (!token.sub) return token;
 
+      try {
       // Find user by email instead of token.sub to ensure we get the correct database ID
       const existingUser = await db.user.findUnique({
         where: { email: token.email as string },
@@ -101,6 +103,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       token.role = existingUser.role;
 
       return token;
+      } catch (error) {
+        console.error("[AUTH] jwt callback error:", error);
+        return token;
+      }
     },
 
     async session({ session, token }) {
