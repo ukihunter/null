@@ -43,9 +43,9 @@ const page = async () => {
                   name: e.user?.name ?? "Unknown",
                   email: e.user?.email ?? "",
                   image: e.user?.image ?? "",
-                  role: (e.user as any)?.role ?? "user",
-                  createdAt: (e.user as any)?.createdAt ?? new Date(),
-                  updatedAt: (e.user as any)?.updatedAt ?? new Date(),
+                  role: (e.user as { role?: string })?.role ?? "user",
+                  createdAt: (e.user as { createdAt?: Date })?.createdAt ?? new Date(),
+                  updatedAt: (e.user as { updatedAt?: Date })?.updatedAt ?? new Date(),
                 },
                 Starmark: e.starmark ?? [],
               })) || []

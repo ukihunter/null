@@ -56,7 +56,7 @@ export function ActivityBarProvider({
   );
 }
 
-interface ActivityBarProps extends React.HTMLAttributes<HTMLDivElement> {}
+type ActivityBarProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function ActivityBar({
   className,
@@ -119,8 +119,7 @@ export function ActivityBarItem({
   );
 }
 
-interface ActivityBarSeparatorProps
-  extends React.HTMLAttributes<HTMLDivElement> {}
+type ActivityBarSeparatorProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function ActivityBarSeparator({
   className,
@@ -131,7 +130,7 @@ export function ActivityBarSeparator({
   );
 }
 
-interface ActivityBarSpacerProps extends React.HTMLAttributes<HTMLDivElement> {}
+type ActivityBarSpacerProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function ActivityBarSpacer({
   className,
