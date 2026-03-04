@@ -11,8 +11,9 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (!user || !account) return false;
 
-      // Check if the user already exists
-      const existingUser = await db.user.findUnique({
+      try {
+        // Check if the user already exists
+        const existingUser = await db.user.findUnique({
         where: { email: user.email! },
       });
 
@@ -77,6 +78,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       }
 
       return true;
+      } catch (error) {
+        console.error("[AUTH] signIn callback error:", error);
+        return false;
+      }
     },
 
     async jwt({ token }) {
