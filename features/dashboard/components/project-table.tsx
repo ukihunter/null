@@ -62,9 +62,9 @@ interface ProjectTableProps {
   onUpdateProject?: (
     id: string,
     data: { title: string; description: string },
-  ) => Promise<void>;
-  onDeleteProject?: (id: string) => Promise<void>;
-  onDuplicateProject?: (id: string) => Promise<EdditorSession>;
+  ) => Promise<{ error: string } | undefined | void>;
+  onDeleteProject?: (id: string) => Promise<{ error: string } | undefined | void>;
+  onDuplicateProject?: (id: string) => Promise<EdditorSession | { error: string } | null | undefined>;
   onMarkasFavorite?: (id: string) => Promise<void>;
 }
 
