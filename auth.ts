@@ -14,54 +14,26 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       try {
         // Check if the user already exists
         const existingUser = await db.user.findUnique({
-        where: { email: user.email! },
-      });
-
-      // If user does not exist, create a new one
-      if (!existingUser) {
-        // Create user first
-        const newUser = await db.user.create({
-          data: {
-            email: user.email!,
-            name: user.name,
-            image: user.image,
-          },
+          where: { email: user.email! },
         });
 
-        if (!newUser) return false; // Return false if user creation fails
-
-        // Then create the account separately to avoid transaction requirement
-        await db.account.create({
-          data: {
-            userId: newUser.id,
-            type: account.type,
-            provider: account.provider,
-            providerAccountId: account.providerAccountId,
-            refresh_token: account.refresh_token,
-            access_token: account.access_token,
-            expires_at: account.expires_at,
-            token_type: account.token_type,
-            scope: account.scope,
-            id_token: account.id_token,
-            session_state: account.session_state as string | null | undefined,
-          },
-        });
-      } else {
-        // Link the account if user exists
-        const existingAccount = await db.account.findUnique({
-          where: {
-            provider_providerAccountId: {
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
+        // If user does not exist, create a new one
+        if (!existingUser) {
+          // Create user first
+          const newUser = await db.user.create({
+            data: {
+              email: user.email!,
+              name: user.name,
+              image: user.image,
             },
-          },
-        });
+          });
 
-        // If the account does not exist, create it
-        if (!existingAccount) {
+          if (!newUser) return false; // Return false if user creation fails
+
+          // Then create the account separately to avoid transaction requirement
           await db.account.create({
             data: {
-              userId: existingUser.id,
+              userId: newUser.id,
               type: account.type,
               provider: account.provider,
               providerAccountId: account.providerAccountId,
@@ -74,10 +46,41 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               session_state: account.session_state as string | null | undefined,
             },
           });
-        }
-      }
+        } else {
+          // Link the account if user exists
+          const existingAccount = await db.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+            },
+          });
 
-      return true;
+          // If the account does not exist, create it
+          if (!existingAccount) {
+            await db.account.create({
+              data: {
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refresh_token: account.refresh_token,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state: account.session_state as
+                  | string
+                  | null
+                  | undefined,
+              },
+            });
+          }
+        }
+
+        return true;
       } catch (error) {
         console.error("[AUTH] signIn callback error:", error);
         // Return true so the user can still sign in even if DB sync fails
