@@ -23,12 +23,22 @@ export const createEdditorsession = async (data: {
   }
 
   try {
+    // Resolve the real DB user ID (token.sub may be the OAuth provider ID)
+    let realUserId = user.id;
+    if (user.email) {
+      const dbUser = await db.user.findUnique({
+        where: { email: user.email },
+        select: { id: true },
+      });
+      if (dbUser) realUserId = dbUser.id;
+    }
+
     const edditorSession = await db.edditorSession.create({
       data: {
         title,
         description,
         template,
-        userId: user.id,
+        userId: realUserId,
       },
     });
     revalidatePath("/dashboard");
@@ -47,7 +57,8 @@ export const getEdditorSessionsForUser = async () => {
   }
 
   try {
-    const edditorSessions = await db.edditorSession.findMany({
+    // First try by user ID (fast path)
+    let edditorSessions = await db.edditorSession.findMany({
       where: {
         userId: user.id,
       },
@@ -70,6 +81,36 @@ export const getEdditorSessionsForUser = async () => {
         },
       },
     });
+
+    // Fallback: if no results, the JWT token.sub may be the OAuth provider ID
+    // rather than the real MongoDB user ID. Try looking up by email instead.
+    if (edditorSessions.length === 0 && user.email) {
+      const dbUser = await db.user.findUnique({
+        where: { email: user.email },
+        select: { id: true },
+      });
+
+      if (dbUser && dbUser.id !== user.id) {
+        // Found the real DB user – fetch their sessions
+        edditorSessions = await db.edditorSession.findMany({
+          where: { userId: dbUser.id },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
+            starmark: {
+              where: { userId: dbUser.id },
+              select: { isMarked: true },
+            },
+          },
+        });
+      }
+    }
 
     // Filter out any sessions with null users (shouldn't happen, but safety check)
     return edditorSessions.filter((session) => session.user !== null);

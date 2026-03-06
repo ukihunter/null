@@ -164,7 +164,7 @@ const DashboardSidebar: React.FC<{
                           isActive={pathname === `/edditor/${activity.id}`}
                           tooltip={activity.name}
                         >
-                          <Link href={`/edditor/${activity.id}`}>
+                          <Link href={`/editor/${activity.id}`}>
                             {IconComponent && (
                               <IconComponent className="h-4 w-4" />
                             )}
@@ -176,7 +176,7 @@ const DashboardSidebar: React.FC<{
                   })}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="View all">
-                  <Link href="/editors" className="flex flex-col items-start">
+                  <Link href="/dashboard" className="flex flex-col items-start">
                     <span className="text-sm text-muted-foreground">
                       View all Project
                     </span>
@@ -191,7 +191,7 @@ const DashboardSidebar: React.FC<{
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Settings">
-              <Link href="/settings">
+              <Link href="/dashboard">
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
               </Link>
