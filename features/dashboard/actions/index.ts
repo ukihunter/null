@@ -19,7 +19,8 @@ export const createEdditorsession = async (data: {
   const user = await currentUser();
 
   if (!user?.id) {
-    return null;
+    console.error("[createEdditorsession] No user session found");
+    return { success: false as const, reason: "not_authenticated" };
   }
 
   try {
@@ -30,7 +31,12 @@ export const createEdditorsession = async (data: {
         where: { email: user.email },
         select: { id: true },
       });
-      if (dbUser) realUserId = dbUser.id;
+      if (dbUser) {
+        realUserId = dbUser.id;
+      } else {
+        console.error("[createEdditorsession] User not found in DB for email:", user.email);
+        return { success: false as const, reason: "user_not_in_db" };
+      }
     }
 
     const edditorSession = await db.edditorSession.create({
@@ -42,10 +48,10 @@ export const createEdditorsession = async (data: {
       },
     });
     revalidatePath("/dashboard");
-    return edditorSession;
+    return { success: true as const, data: edditorSession };
   } catch (error) {
-    console.error("Error creating Edditor session:", error);
-    return null;
+    console.error("[createEdditorsession] DB error:", error);
+    return { success: false as const, reason: "db_error" };
   }
 };
 

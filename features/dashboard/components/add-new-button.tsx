@@ -38,14 +38,18 @@ const Addnewbutton = () => {
         template: template as Templates,
         userId: "", // This is ignored - user is fetched from session in the action
       });
-      if (!res) {
-        toast.error("Failed to create editor. Please try again.");
+      if (!res.success) {
+        const messages: Record<string, string> = {
+          not_authenticated: "You must be signed in. Please refresh and try again.",
+          user_not_in_db: "Account not found in database. Please sign out and sign back in.",
+          db_error: "Database error. Check that MongoDB Atlas allows all IPs (0.0.0.0/0).",
+        };
+        toast.error(messages[res.reason] ?? "Failed to create editor. Please try again.");
         return "";
       }
       toast.success("Editor created successfully");
-      console.log("Creating new session:", data);
       setIsModelOpen(false);
-      return res.id ?? ""; // Return the project ID so template-selector-model can navigate
+      return res.data.id ?? ""; // Return the project ID so template-selector-model can navigate
     } catch (error) {
       console.error("Error creating session:", error);
       toast.error("Failed to create editor. Please try again.");
