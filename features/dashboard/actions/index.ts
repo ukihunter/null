@@ -19,7 +19,7 @@ export const createEdditorsession = async (data: {
   const user = await currentUser();
 
   if (!user?.id) {
-    throw new Error("User not authenticated");
+    return null;
   }
 
   try {

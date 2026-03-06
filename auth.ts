@@ -88,21 +88,29 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     async jwt({ token }) {
       if (!token.sub) return token;
 
+      // If we already stored the verified DB user ID in the token, reuse it.
+      // This avoids a DB round-trip on every request after the first successful lookup.
+      if (token.dbUserId) {
+        token.sub = token.dbUserId as string;
+        return token;
+      }
+
+      // First time (or existing bad token without dbUserId): look up the real DB user.
       try {
-      // Find user by email instead of token.sub to ensure we get the correct database ID
-      const existingUser = await db.user.findUnique({
-        where: { email: token.email as string },
-      });
+        const existingUser = await db.user.findUnique({
+          where: { email: token.email as string },
+        });
 
-      if (!existingUser) return token;
+        if (!existingUser) return token;
 
-      // Override token.sub with the actual database user ID
-      token.sub = existingUser.id;
-      token.name = existingUser.name;
-      token.email = existingUser.email;
-      token.role = existingUser.role;
+        // Store DB id in both sub and a dedicated cached field
+        token.sub = existingUser.id;
+        token.dbUserId = existingUser.id;
+        token.name = existingUser.name;
+        token.email = existingUser.email;
+        token.role = existingUser.role;
 
-      return token;
+        return token;
       } catch (error) {
         console.error("[AUTH] jwt callback error:", error);
         return token;

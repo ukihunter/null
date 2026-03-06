@@ -238,18 +238,18 @@ const TemplateSelectorModel = ({
         description: template?.description,
       });
 
-      console.log(
-        `Creating ${projectName || "new project"} with template: ${template?.name}`,
-      );
-
       if (projectId) {
+        console.log(
+          `Creating ${projectName || "new project"} with template: ${template?.name}`,
+        );
         router.push(`/editor/${projectId}`);
+        onClose();
+        // Reset state for next time
+        setStep("select");
+        setSelectedTemplate(null);
+        setProjectName("");
       }
-      onClose();
-      // Reset state for next time
-      setStep("select");
-      setSelectedTemplate(null);
-      setProjectName("");
+      // If projectId is empty, keep modal open so user can retry
     }
   };
 
