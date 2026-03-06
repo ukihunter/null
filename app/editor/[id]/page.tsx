@@ -631,7 +631,7 @@ const Page = () => {
                                       <X className="size-4" />
                                     </span>
                                   </TooltipTrigger>
-                                  <TooltipContent>Close File</TooltipContent>
+                                  <TooltipContent>Close FileE</TooltipContent>
                                 </Tooltip>
                               </TabsTrigger>
                             ))}
