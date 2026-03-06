@@ -31,11 +31,11 @@ export const createEdditorsession = async (data: {
         userId: user.id,
       },
     });
-
+    revalidatePath("/dashboard");
     return edditorSession;
   } catch (error) {
     console.error("Error creating Edditor session:", error);
-    throw error;
+    return null;
   }
 };
 
@@ -89,7 +89,7 @@ export const deleteEdditorSession = async (id: string) => {
     revalidatePath("/dashboard");
   } catch (error) {
     console.error("Error deleting Edditor session:", error);
-    throw error;
+    return { error: "Failed to delete project" };
   }
 };
 
@@ -102,9 +102,10 @@ export const editprojectById = async (
       where: { id },
       data,
     });
+    revalidatePath("/dashboard");
   } catch (error) {
     console.error("Error updating Edditor session:", error);
-    throw error;
+    return { error: "Failed to update project" };
   }
 };
 
@@ -114,7 +115,7 @@ export const duplicateEdditorSession = async (id: string) => {
       where: { id },
     });
     if (!originalSession) {
-      throw new Error("Original Edditor session not found");
+      return { error: "Original project not found" };
     }
 
     const duplicatedSession = await db.edditorSession.create({
@@ -125,9 +126,10 @@ export const duplicateEdditorSession = async (id: string) => {
         userId: originalSession.userId,
       },
     });
+    revalidatePath("/dashboard");
     return duplicatedSession;
   } catch (error) {
     console.error("Error duplicating Edditor session:", error);
-    throw error;
+    return { error: "Failed to duplicate project" };
   }
 };

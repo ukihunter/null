@@ -31,16 +31,26 @@ const Addnewbutton = () => {
     // Map REACT to REACTJS for Prisma
     const template = data.template === "REACT" ? "REACTJS" : data.template;
 
-    const res = await createEdditorsession({
-      title: data.title,
-      description: data.description || "",
-      template: template as Templates,
-      userId: "", // This is ignored - user is fetched from session in the action
-    });
-    toast("Editor created successfully");
-    console.log("Creating new session:", data);
-    setIsModelOpen(false);
-    return res?.id ?? ""; // Return the project ID so template-selector-model can navigate
+    try {
+      const res = await createEdditorsession({
+        title: data.title,
+        description: data.description || "",
+        template: template as Templates,
+        userId: "", // This is ignored - user is fetched from session in the action
+      });
+      if (!res) {
+        toast.error("Failed to create editor. Please try again.");
+        return "";
+      }
+      toast.success("Editor created successfully");
+      console.log("Creating new session:", data);
+      setIsModelOpen(false);
+      return res.id ?? ""; // Return the project ID so template-selector-model can navigate
+    } catch (error) {
+      console.error("Error creating session:", error);
+      toast.error("Failed to create editor. Please try again.");
+      return "";
+    }
   };
   return (
     <>
