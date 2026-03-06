@@ -165,13 +165,13 @@ export default function ProjectTable({
               <TableRow key={project.id}>
                 <TableCell>
                   <div className="flex flex-col">
-                    <Link
+                    <a
                       href={`/editor/${project.id}`}
                       className="hover:underline"
                     >
                       {" "}
                       <span className="font-semibold">{project.title}</span>
-                    </Link>
+                    </a>
                     <span className="text-sm text-gray-500 line-clamp-1">
                       {project.description}
                     </span>

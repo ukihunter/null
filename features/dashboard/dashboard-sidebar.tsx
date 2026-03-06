@@ -126,7 +126,7 @@ const DashboardSidebar: React.FC<{
                         isActive={pathname === `/editor/${dashboard.id}`}
                         tooltip={dashboard.name}
                       >
-                        <Link
+                        <a
                           href={`/editor/${dashboard.id}`}
                           className="flex items-center gap-2"
                         >
@@ -134,7 +134,7 @@ const DashboardSidebar: React.FC<{
                             <IconComponent className="w-4 h-4" />
                           )}
                           <span>{dashboard.name}</span>
-                        </Link>
+                        </a>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
@@ -164,12 +164,12 @@ const DashboardSidebar: React.FC<{
                           isActive={pathname === `/edditor/${activity.id}`}
                           tooltip={activity.name}
                         >
-                          <Link href={`/editor/${activity.id}`}>
+                          <a href={`/editor/${activity.id}`}>
                             {IconComponent && (
                               <IconComponent className="h-4 w-4" />
                             )}
                             <span>{activity.name}</span>
-                          </Link>
+                          </a>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );

@@ -29,7 +29,6 @@ import {
 import Image from "next/image";
 import { useState } from "react";
 import EmptyState from "@/components/ui/empty-state";
-import { useRouter } from "next/navigation";
 
 // TemplateSelectionModal.tsx
 type TemplateSelectionModalProps = {
@@ -174,7 +173,6 @@ const TemplateSelectorModel = ({
   onClose,
   onSubmit,
 }: TemplateSelectionModalProps) => {
-  const router = useRouter();
   const [step, setStep] = useState<"select" | "configure">("select");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -242,8 +240,9 @@ const TemplateSelectorModel = ({
         console.log(
           `Creating ${projectName || "new project"} with template: ${template?.name}`,
         );
-        router.push(`/editor/${projectId}`);
         onClose();
+        // Hard navigation so browser receives COEP/COOP headers (required for WebContainer SharedArrayBuffer)
+        window.location.href = `/editor/${projectId}`;
         // Reset state for next time
         setStep("select");
         setSelectedTemplate(null);

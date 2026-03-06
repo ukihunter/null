@@ -62,7 +62,7 @@ export const GET = async () => {
     sessionCount,
     idMatch:
       sessionInfo && dbUser
-        ? (sessionInfo as { userId: string }).userId === dbUser.id
+        ? (sessionInfo as unknown as { userId: string }).userId === dbUser.id
         : null,
   });
 };

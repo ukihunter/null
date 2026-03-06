@@ -20,30 +20,33 @@ export default auth((req) => {
   const isAuthRoute = authRoutes.includes(nextUrl.pathname);
   const isEditorRoute = nextUrl.pathname.startsWith("/editor");
 
+  // Build the base response — always NextResponse.next() so our headers are never dropped
+  // (returning null hands control to NextAuth which creates its own response without our headers)
+  const buildResponse = () => {
+    const res = NextResponse.next();
+    if (isEditorRoute) {
+      res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+      res.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+    }
+    return res;
+  };
+
   if (isApiAuthRoute) {
-    return null;
+    return buildResponse();
   }
 
   if (isAuthRoute) {
     if (isLoggedIn) {
       return Response.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
     }
-    return null;
+    return buildResponse();
   }
 
   if (!isLoggedIn && !isPublicRoute) {
     return Response.redirect(new URL("/auth/sign-in", nextUrl));
   }
 
-  // Inject COEP/COOP headers required for WebContainers (SharedArrayBuffer)
-  if (isEditorRoute) {
-    const response = NextResponse.next();
-    response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
-    response.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
-    return response;
-  }
-
-  return null;
+  return buildResponse();
 });
 
 export const config = {
