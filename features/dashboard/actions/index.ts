@@ -95,7 +95,7 @@ export const deleteEdditorSession = async (id: string) => {
 
 export const editprojectById = async (
   id: string,
-  data: { title?: string; description?: string }
+  data: { title?: string; description?: string },
 ) => {
   try {
     await db.edditorSession.update({
