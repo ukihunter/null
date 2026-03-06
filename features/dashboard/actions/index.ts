@@ -75,7 +75,7 @@ export const getEdditorSessionsForUser = async () => {
     return edditorSessions.filter((session) => session.user !== null);
   } catch (error) {
     console.error("Error fetching Edditor sessions:", error);
-    throw error;
+    return [];
   }
 };
 
