@@ -60,7 +60,7 @@ const DashboardSidebar: React.FC<{
 }> = ({ initialDashboardSidebar }) => {
   const pathname = usePathname();
   const [starredDashboards, setStarredDashboards] = useState(
-    initialDashboardSidebar.filter((p) => p.starred)
+    initialDashboardSidebar.filter((p) => p.starred),
   );
   const [recentActivity, setRecentActivity] = useState(initialDashboardSidebar);
 
