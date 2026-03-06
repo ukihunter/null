@@ -40,11 +40,16 @@ const Addnewbutton = () => {
       });
       if (!res.success) {
         const messages: Record<string, string> = {
-          not_authenticated: "You must be signed in. Please refresh and try again.",
-          user_not_in_db: "Account not found in database. Please sign out and sign back in.",
-          db_error: "Database error. Check that MongoDB Atlas allows all IPs (0.0.0.0/0).",
+          not_authenticated:
+            "You must be signed in. Please refresh and try again.",
+          user_not_in_db:
+            "Account not found in database. Please sign out and sign back in.",
+          db_error:
+            "Database error. Check that MongoDB Atlas allows all IPs (0.0.0.0/0).",
         };
-        toast.error(messages[res.reason] ?? "Failed to create editor. Please try again.");
+        toast.error(
+          messages[res.reason] ?? "Failed to create editor. Please try again.",
+        );
         return "";
       }
       toast.success("Editor created successfully");

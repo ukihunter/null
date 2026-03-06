@@ -34,7 +34,10 @@ export const createEdditorsession = async (data: {
       if (dbUser) {
         realUserId = dbUser.id;
       } else {
-        console.error("[createEdditorsession] User not found in DB for email:", user.email);
+        console.error(
+          "[createEdditorsession] User not found in DB for email:",
+          user.email,
+        );
         return { success: false as const, reason: "user_not_in_db" };
       }
     }

@@ -9,9 +9,13 @@ export const GET = async () => {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL || "(not set)",
     DATABASE_URL: !!process.env.DATABASE_URL,
     GITHUB_ID: !!(process.env.GITHUB_ID ?? process.env.AUTH_GITHUB_ID),
-    GITHUB_SECRET: !!(process.env.GITHUB_SECRET ?? process.env.AUTH_GITHUB_SECRET),
+    GITHUB_SECRET: !!(
+      process.env.GITHUB_SECRET ?? process.env.AUTH_GITHUB_SECRET
+    ),
     GOOGLE_ID: !!(process.env.GOOGLE_ID ?? process.env.AUTH_GOOGLE_ID),
-    GOOGLE_SECRET: !!(process.env.GOOGLE_SECRET ?? process.env.AUTH_GOOGLE_SECRET),
+    GOOGLE_SECRET: !!(
+      process.env.GOOGLE_SECRET ?? process.env.AUTH_GOOGLE_SECRET
+    ),
   };
 
   const missingEnvVars = Object.entries(envCheck)
@@ -56,8 +60,9 @@ export const GET = async () => {
     dbUser,
     dbError,
     sessionCount,
-    idMatch: sessionInfo && dbUser
-      ? (sessionInfo as { userId: string }).userId === dbUser.id
-      : null,
+    idMatch:
+      sessionInfo && dbUser
+        ? (sessionInfo as { userId: string }).userId === dbUser.id
+        : null,
   });
 };
