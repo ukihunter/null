@@ -17,8 +17,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Only apply COEP/COOP to the editor routes (required for WebContainers / SharedArrayBuffer)
-        source: "/editor/:path*",
+        // Apply COEP/COOP to editor routes (required for WebContainers / SharedArrayBuffer)
+        // credentialless is used instead of require-corp so third-party CDN resources still load
+        source: "/editor/(.*)",
         headers: [
           {
             key: "Cross-Origin-Opener-Policy",
@@ -26,7 +27,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Cross-Origin-Embedder-Policy",
-            value: "require-corp",
+            value: "credentialless",
           },
         ],
       },
