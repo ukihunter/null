@@ -1,22 +1,10 @@
 import { templatePaths } from "./../../../../lib/tempalte";
 import {
-  readTemplateStructureFromJson,
-  saveTemplateStructureToJson,
+  scanTemplateDirectory,
 } from "@/features/edditor/lib/path-to-jason";
 import { db } from "@/lib/db";
 import path from "path";
-import fs from "fs/promises";
 import { NextRequest } from "next/server";
-
-function validateJsonStructure(data: unknown): boolean {
-  try {
-    JSON.parse(JSON.stringify(data)); // Ensures it's serializable
-    return true;
-  } catch (error) {
-    console.error("Invalid JSON structure:", error);
-    return false;
-  }
-}
 
 export async function GET(
   request: NextRequest,
@@ -49,20 +37,11 @@ export async function GET(
 
   try {
     const inputPath = path.join(process.cwd(), templatePath);
-    const tempDir = path.join(process.cwd(), "temp");
-    const outputFile = path.join(tempDir, `${id}.json`);
-
-    // Ensure temp directory exists
-    await fs.mkdir(tempDir, { recursive: true });
-
     console.log(`Processing template: ${templateKey} from ${inputPath}`);
 
-    await saveTemplateStructureToJson(inputPath, outputFile);
-    const result = await readTemplateStructureFromJson(outputFile);
-    if (!validateJsonStructure(result.items)) {
-      return new Response("Invalid template structure", { status: 500 });
-    }
-    await fs.unlink(outputFile);
+    // Scan directly — no temp file, works on Vercel read-only filesystem
+    const result = await scanTemplateDirectory(inputPath);
+
     return Response.json(
       { success: true, templateJson: result },
       { status: 200 }

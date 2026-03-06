@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // Bundle null-templte files into Vercel serverless functions
+  // (Vercel only bundles files explicitly imported; static folders need tracing)
+  outputFileTracingIncludes: {
+    "/api/template/[id]": ["./null-templte/**/*"],
+  },
   images: {
     remotePatterns: [
       {
