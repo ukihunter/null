@@ -6,6 +6,9 @@ import { Plus } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import GithubImportModal from "./github-import-modal";
+import { importGithubRepo } from "../actions";
 
 const Addrepobutton = () => {
   const router = useRouter();
@@ -42,6 +45,7 @@ const Addrepobutton = () => {
   return (
     <>
       <div
+        onClick={() => setIsModalOpen(true)}
         className="group px-6 py-6 flex flex-row justify-between items-center border rounded-lg bg-muted cursor-pointer 
         transition-all duration-300 ease-in-out
         hover:bg-background hover:border-[#f0627f] hover:scale-[1.02]
@@ -53,6 +57,10 @@ const Addrepobutton = () => {
             variant={"outline"}
             className="flex justify-center items-center bg-white group-hover:bg-[#ff6585] group-hover:border-[#ff6585] group-hover:text-[#ff6585] transition-colors duration-300"
             size={"icon"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsModalOpen(true);
+            }}
           >
             <Plus
               size={30}
@@ -77,6 +85,12 @@ const Addrepobutton = () => {
           />
         </div>
       </div>
+
+      <GithubImportModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleImport}
+      />
     </>
   );
 };

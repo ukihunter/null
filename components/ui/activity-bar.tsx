@@ -15,7 +15,7 @@ interface ActivityBarContextType {
 }
 
 const ActivityBarContext = React.createContext<ActivityBarContextType | null>(
-  null
+  null,
 );
 
 function useActivityBar() {
@@ -44,7 +44,7 @@ export function ActivityBarProvider({
       setActiveView(view);
       onViewChange?.(view);
     },
-    [onViewChange]
+    [onViewChange],
   );
 
   return (
@@ -67,7 +67,7 @@ export function ActivityBar({
     <div
       className={cn(
         "flex h-full w-12 flex-col items-center border-r bg-muted/40",
-        className
+        className,
       )}
       {...props}
     >
@@ -99,7 +99,7 @@ export function ActivityBarItem({
           onClick={() => setActiveView(view)}
           className={cn(
             "relative flex h-12 w-12 items-center justify-center transition-colors hover:bg-muted",
-            isActive && "bg-muted border-l-2 border-primary"
+            isActive && "bg-muted border-l-2 border-primary",
           )}
         >
           <div className={cn("transition-colors", isActive && "text-primary")}>

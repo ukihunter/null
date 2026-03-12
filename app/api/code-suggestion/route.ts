@@ -195,15 +195,17 @@ async function generateSuggestion(prompt: string): Promise<string> {
     if (!response.ok) return "// AI suggestion unavailable";
 
     const data = await response.json();
-    let suggestion =
-      data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    let suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     if (suggestion.includes("```")) {
       const codeMatch = suggestion.match(/```[\w]*\n?([\s\S]*?)```/);
       suggestion = codeMatch ? codeMatch[1].trim() : suggestion;
     }
 
-    return suggestion.replace(/\|CURSOR\|/g, "").trim() || "// AI suggestion unavailable";
+    return (
+      suggestion.replace(/\|CURSOR\|/g, "").trim() ||
+      "// AI suggestion unavailable"
+    );
   } catch {
     return "// AI suggestion unavailable";
   }
