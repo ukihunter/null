@@ -8,6 +8,37 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const Addrepobutton = () => {
+  const router = useRouter();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleImport = async (url: string) => {
+    const res = await importGithubRepo(url);
+
+    if (!res.success) {
+      const messages: Record<string, string> = {
+        not_authenticated: "You must be signed in to import a repository.",
+        user_not_in_db: "Account not found. Please sign out and sign back in.",
+        invalid_url:
+          "Invalid GitHub URL. Example: https://github.com/owner/repo",
+        repo_not_found:
+          "Repository not found. Make sure the URL is correct and the repo is public.",
+        rate_limited:
+          "GitHub API rate limit reached. Add a GITHUB_TOKEN env variable or try again later.",
+        no_files_found: "No importable text files found in this repository.",
+        db_error: "Database error. Please try again.",
+      };
+      toast.error(
+        messages[res.reason] ??
+          "Failed to import repository. Please try again.",
+      );
+      throw new Error(res.reason);
+    }
+
+    toast.success("Repository imported successfully!");
+    setIsModalOpen(false);
+    router.push(`/editor/${res.data.id}`);
+  };
+
   return (
     <>
       <div
