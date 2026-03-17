@@ -149,9 +149,16 @@ export function useCollaboration(sessionId: string) {
 
     channel.bind("client-cursor-move", (data: CursorPosition) => {
       if (data.userId === userId) return;
+      console.log(`Received cursor move from ${data.userName}:`, {
+        fileId: data.fileId,
+        line: data.line,
+        column: data.column,
+        color: data.color,
+      });
       setCursors((prev) => {
         const next = new Map(prev);
         next.set(data.userId, data);
+        console.log("Updated cursors map:", Array.from(next.entries()));
         return next;
       });
     });
@@ -197,9 +204,25 @@ export function useCollaboration(sessionId: string) {
 
   const broadcastCursor = useCallback(
     (fileId: string, line: number, column: number) => {
-      if (!channelRef.current || !userId) return;
+      if (!channelRef.current || !userId) {
+        console.warn(
+          "Cannot broadcast cursor - channel not ready",
+          channelRef.current ? "channel exists" : "no channel",
+        );
+        return;
+      }
       try {
-        channelRef.current.trigger("client-cursor-move", {
+        // Ensure channel is subscribed before triggering
+        if (!channelRef.current.subscribed) {
+          console.warn("Channel not subscribed yet, queuing cursor broadcast");
+          setTimeout(() => broadcastCursor(fileId, line, column), 100);
+          return;
+        }
+
+        console.log(
+          `Broadcasting cursor for file ${fileId}: line ${line}, col ${column}`,
+        );
+        const event = channelRef.current.trigger("client-cursor-move", {
           userId,
           userName,
           fileId,
@@ -207,8 +230,9 @@ export function useCollaboration(sessionId: string) {
           column,
           color: currentUserColor,
         });
-      } catch {
-        // Silently ignore
+        console.log("Cursor broadcast result:", event);
+      } catch (error) {
+        console.error("Failed to broadcast cursor:", error);
       }
     },
     [userId, userName, currentUserColor],

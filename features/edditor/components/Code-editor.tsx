@@ -21,6 +21,9 @@ interface CodeEditorProps {
   onAcceptSuggestion(editor: any, monaco: Monaco): void;
   onRejectSuggestion(type: string, editor: any): void;
   onTriggerSuggestion(type: string, editor: any): void;
+  onCursorChange?: (line: number, column: number) => void;
+  remoteCursors?: Map<string, { userId: string; userName: string; line: number; column: number; color: string; fileId: string }>;
+  activeFileId?: string;
 }
 
 const CodeEditor = ({
@@ -33,6 +36,9 @@ const CodeEditor = ({
   onAcceptSuggestion,
   onRejectSuggestion,
   onTriggerSuggestion,
+  onCursorChange,
+  remoteCursors,
+  activeFileId,
 }: CodeEditorProps) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -46,6 +52,8 @@ const CodeEditor = ({
   const suggestionAcceptedRef = useRef(false);
   const suggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tabCommandRef = useRef<any>(null);
+  const remoteCursorDecorationsRef = useRef<string[]>([]);
+  const cursorBroadcastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Generate unique ID for each suggestion
   const generateSuggestionId = () =>
@@ -361,6 +369,50 @@ const CodeEditor = ({
     monacoRef.current = monaco;
     console.log("Editor instance mounted:", !!editorRef.current);
 
+    // Inject CSS for remote cursors
+    const style = document.createElement("style");
+    style.textContent = `
+      .remote-cursor-decoration {
+        border-left: 2px solid currentColor;
+        background-color: rgba(255, 255, 255, 0.1);
+        animation: remoteCursorBlink 0.7s infinite;
+      }
+      
+      .remote-cursor-inline {
+        border-left: 2px solid currentColor;
+      }
+      
+      .remote-cursor-label {
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 0px 4px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-right: 2px;
+        white-space: nowrap;
+        display: inline-block;
+      }
+      
+      .remote-cursor-glyph {
+        background: radial-gradient(circle, currentColor, transparent);
+        width: 10px;
+        height: 10px;
+        margin: 2px 3px;
+        border-radius: 50%;
+      }
+      
+      @keyframes remoteCursorBlink {
+        0%, 49% {
+          opacity: 1;
+        }
+        50%, 100% {
+          opacity: 0.4;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
     editor.updateOptions({
       ...defaultEditorOptions,
       // Enable inline suggestions but with specific settings to prevent conflicts
@@ -462,6 +514,20 @@ const CodeEditor = ({
       if (isAcceptingSuggestionRef.current) return;
 
       const newPosition = e.position;
+
+      // Broadcast cursor position to collaborators (debounced to 100ms)
+      if (onCursorChange && activeFileId) {
+        if (cursorBroadcastTimerRef.current) {
+          clearTimeout(cursorBroadcastTimerRef.current);
+        }
+        cursorBroadcastTimerRef.current = setTimeout(() => {
+          console.log(
+            `Broadcasting cursor at ${newPosition.lineNumber}:${newPosition.column} for file ${activeFileId}`,
+          );
+          onCursorChange(newPosition.lineNumber, newPosition.column);
+          cursorBroadcastTimerRef.current = null;
+        }, 100);
+      }
 
       // Clear existing suggestion if cursor moved away
       if (currentSuggestionRef.current && !suggestionAcceptedRef.current) {
@@ -566,6 +632,117 @@ const CodeEditor = ({
   useEffect(() => {
     updateEditorLanguage();
   }, [activeFile]);
+
+  // Update remote cursors decorations
+  useEffect(() => {
+    console.log("Remote cursors effect triggered", {
+      hasEditor: !!editorRef.current,
+      hasMonaco: !!monacoRef.current,
+      activeFileId,
+      cursorCount: remoteCursors?.size || 0,
+    });
+
+    if (!editorRef.current || !remoteCursors || !activeFileId) {
+      console.log("Clearing remote cursor decorations - missing pre-requisites");
+      // Clear decorations if no editor or no cursors
+      if (editorRef.current && remoteCursorDecorationsRef.current.length > 0) {
+        remoteCursorDecorationsRef.current = editorRef.current.deltaDecorations(
+          remoteCursorDecorationsRef.current,
+          [],
+        );
+      }
+      return;
+    }
+
+    if (remoteCursors.size === 0) {
+      console.log("No remote cursors to display");
+      if (editorRef.current && remoteCursorDecorationsRef.current.length > 0) {
+        remoteCursorDecorationsRef.current = editorRef.current.deltaDecorations(
+          remoteCursorDecorationsRef.current,
+          [],
+        );
+      }
+      return;
+    }
+
+    // Create decorations for remote cursors on the current file
+    const decorations: any[] = [];
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+
+    let relevantCursorCount = 0;
+    remoteCursors.forEach((cursor) => {
+      console.log("Checking cursor:", {
+        userId: cursor.userId,
+        fileId: cursor.fileId,
+        activeFileId,
+        line: cursor.line,
+        column: cursor.column,
+      });
+
+      if (cursor.fileId === activeFileId) {
+        relevantCursorCount++;
+        // Main cursor line decoration with background color
+        decorations.push({
+          range: new monaco.Range(
+            cursor.line,
+            cursor.column,
+            cursor.line,
+            Math.max(cursor.column + 1, cursor.column + 2),
+          ),
+          options: {
+            isWholeLine: false,
+            className: `remote-cursor-decoration`,
+            inlineClassName: `remote-cursor-inline`,
+            glyphMarginClassName: "remote-cursor-glyph",
+            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypedAtEdges,
+            glyphMargin: {
+              position: 2,
+            },
+            zIndex: 1,
+          },
+        });
+
+        // Add user label decoration before the cursor
+        decorations.push({
+          range: new monaco.Range(
+            cursor.line,
+            cursor.column,
+            cursor.line,
+            cursor.column,
+          ),
+          options: {
+            isWholeLine: false,
+            before: {
+              contentText: ` ${cursor.userName} `,
+              inlineClassName: `remote-cursor-label`,
+              inlineClassNameAffectsLetterSpacing: false,
+            },
+            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypedAtEdges,
+          },
+        });
+      }
+    });
+
+    console.log("Creating decorations:", {
+      totalDecorations: decorations.length,
+      relevantCursorCount,
+    });
+
+    // Update decorations
+    if (editorRef.current) {
+      console.log(
+        "Updating remote cursor decorations with",
+        decorations.length,
+        "items",
+      );
+      remoteCursorDecorationsRef.current = editorRef.current.deltaDecorations(
+        remoteCursorDecorationsRef.current,
+        decorations,
+      );
+      console.log("Decorations applied:", remoteCursorDecorationsRef.current);
+    }
+  }, [remoteCursors, activeFileId]);
 
   // Cleanup on unmount
   useEffect(() => {
