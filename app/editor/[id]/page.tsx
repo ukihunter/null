@@ -8,6 +8,7 @@ import { useEditor } from "@/features/edditor/hook/useEditor";
 //import TemplateFileTree from "@/features/edditor/components/template-file-tree";
 import { useFileExplorer } from "@/features/edditor/hook/useFileExpolrer";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import "@/features/edditor/styles/remote-cursors.css";
 
 import {
   Tooltip,
@@ -77,11 +78,15 @@ import {
 import ToggelAI from "@/features/edditor/components/toggel-ai";
 import { useAISuggestion } from "@/features/ai-chat/hooks/useAiSuggesion";
 import { useCollaboration } from "@/features/edditor/hook/useCollaboration";
+import { useFileEditing } from "@/features/edditor/hook/useFileEditing";
+import { FileEditingIndicator } from "@/features/edditor/components/file-editing-indicator";
+import { useSession } from "next-auth/react";
 //import { editor } from "monaco-editor";
 //import { error } from "console";
 
 const Page = () => {
   const { id } = useParams() as { id?: string };
+  const { data: session } = useSession();
   const { editorData, templateData, error, saveTemplateData } = useEditor(
     id ?? "",
   );
@@ -89,6 +94,12 @@ const Page = () => {
   const aiSuggestion = useAISuggestion();
 
   const collab = useCollaboration(id ?? "");
+  const fileEditing = useFileEditing(
+    id ?? "",
+    session?.user?.id ?? "",
+    session?.user?.name ?? "Anonymous",
+    session?.user?.image ?? null,
+  );
   const broadcastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
@@ -356,6 +367,19 @@ const Page = () => {
     window.addEventListener("collab-code-change", handler);
     return () => window.removeEventListener("collab-code-change", handler);
   }, [activeFileId, updateFileContent]);
+
+  // Handle file editing state - start/stop editing when active file changes
+  React.useEffect(() => {
+    if (activeFileId) {
+      fileEditing.startEditingFile(activeFileId);
+    }
+
+    return () => {
+      if (activeFileId) {
+        fileEditing.stopEditingFile(activeFileId);
+      }
+    };
+  }, [activeFileId, fileEditing]);
 
   // Error state
   if (error || containerError) {
@@ -656,6 +680,13 @@ const Page = () => {
                         <ResizablePanel
                           defaultSize={isPreviewVisible ? 50 : 100}
                         >
+                          {activeFile && (
+                            <FileEditingIndicator
+                              editor={fileEditing.getFileEditor(
+                                activeFileId || "",
+                              )}
+                            />
+                          )}
                           <CodeEditor
                             activeFile={activeFile}
                             content={activeFile?.content || ""}
@@ -723,6 +754,9 @@ const Page = () => {
                               type: string,
                               editor: import("monaco-editor").editor.IStandaloneCodeEditor,
                             ) => aiSuggestion.rejectSuggestion(editor)}
+                            readOnly={fileEditing.isFileBeingEditedByOther(
+                              activeFileId || "",
+                            )}
                           />
                         </ResizablePanel>
                         {isPreviewVisible && (

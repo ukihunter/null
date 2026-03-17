@@ -34,6 +34,7 @@ interface CodeEditorProps {
     }
   >;
   activeFileId?: string | null;
+  readOnly?: boolean;
 }
 
 const CodeEditor = ({
@@ -49,6 +50,7 @@ const CodeEditor = ({
   onCursorChange,
   remoteCursors,
   activeFileId,
+  readOnly = false,
 }: CodeEditorProps) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
@@ -805,7 +807,7 @@ const CodeEditor = ({
             : "plaintext"
         }
         //@ts-ignore
-        options={defaultEditorOptions}
+        options={{ ...defaultEditorOptions, readOnly }}
       />
     </div>
   );
