@@ -59,16 +59,13 @@ export function useFileEditing(
     channelRef.current = channel;
 
     // Listen for file editing state changes
-    channel.bind(
-      "client-file-editing-start",
-      (data: FileEditingState) => {
-        setFileEditing((prev) => {
-          const next = new Map(prev);
-          next.set(data.fileId, data);
-          return next;
-        });
-      },
-    );
+    channel.bind("client-file-editing-start", (data: FileEditingState) => {
+      setFileEditing((prev) => {
+        const next = new Map(prev);
+        next.set(data.fileId, data);
+        return next;
+      });
+    });
 
     channel.bind("client-file-editing-stop", (data: { fileId: string }) => {
       setFileEditing((prev) => {
@@ -118,28 +115,25 @@ export function useFileEditing(
     [userId, userName, userImage, currentUserColor, currentEditingFileId],
   );
 
-  const stopEditingFile = useCallback(
-    (fileId: string) => {
-      if (!channelRef.current) return;
+  const stopEditingFile = useCallback((fileId: string) => {
+    if (!channelRef.current) return;
 
-      setCurrentEditingFileId(null);
+    setCurrentEditingFileId(null);
 
-      // Clear timeout
-      if (editingTimeoutRef.current) {
-        clearTimeout(editingTimeoutRef.current);
-        editingTimeoutRef.current = null;
-      }
+    // Clear timeout
+    if (editingTimeoutRef.current) {
+      clearTimeout(editingTimeoutRef.current);
+      editingTimeoutRef.current = null;
+    }
 
-      try {
-        channelRef.current.trigger("client-file-editing-stop", {
-          fileId,
-        });
-      } catch (error) {
-        console.error("Failed to broadcast file editing stop:", error);
-      }
-    },
-    [],
-  );
+    try {
+      channelRef.current.trigger("client-file-editing-stop", {
+        fileId,
+      });
+    } catch (error) {
+      console.error("Failed to broadcast file editing stop:", error);
+    }
+  }, []);
 
   // Check if a specific file is being edited by someone else
   const isFileBeingEditedByOther = useCallback(
