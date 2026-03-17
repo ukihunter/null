@@ -22,7 +22,17 @@ interface CodeEditorProps {
   onRejectSuggestion(type: string, editor: any): void;
   onTriggerSuggestion(type: string, editor: any): void;
   onCursorChange?: (line: number, column: number) => void;
-  remoteCursors?: Map<string, { userId: string; userName: string; line: number; column: number; color: string; fileId: string }>;
+  remoteCursors?: Map<
+    string,
+    {
+      userId: string;
+      userName: string;
+      line: number;
+      column: number;
+      color: string;
+      fileId: string;
+    }
+  >;
   activeFileId?: string;
 }
 
@@ -643,7 +653,9 @@ const CodeEditor = ({
     });
 
     if (!editorRef.current || !remoteCursors || !activeFileId) {
-      console.log("Clearing remote cursor decorations - missing pre-requisites");
+      console.log(
+        "Clearing remote cursor decorations - missing pre-requisites",
+      );
       // Clear decorations if no editor or no cursors
       if (editorRef.current && remoteCursorDecorationsRef.current.length > 0) {
         remoteCursorDecorationsRef.current = editorRef.current.deltaDecorations(
@@ -695,7 +707,8 @@ const CodeEditor = ({
             className: `remote-cursor-decoration`,
             inlineClassName: `remote-cursor-inline`,
             glyphMarginClassName: "remote-cursor-glyph",
-            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypedAtEdges,
+            stickiness:
+              monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypedAtEdges,
             glyphMargin: {
               position: 2,
             },
@@ -718,7 +731,8 @@ const CodeEditor = ({
               inlineClassName: `remote-cursor-label`,
               inlineClassNameAffectsLetterSpacing: false,
             },
-            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypedAtEdges,
+            stickiness:
+              monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypedAtEdges,
           },
         });
       }

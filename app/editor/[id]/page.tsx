@@ -699,7 +699,11 @@ const Page = () => {
                             }}
                             onCursorChange={(line: number, column: number) => {
                               if (activeFileId) {
-                                collab.broadcastCursor(activeFileId, line, column);
+                                collab.broadcastCursor(
+                                  activeFileId,
+                                  line,
+                                  column,
+                                );
                               }
                             }}
                             remoteCursors={collab.cursors}
