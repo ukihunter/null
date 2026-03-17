@@ -33,7 +33,7 @@ interface CodeEditorProps {
       fileId: string;
     }
   >;
-  activeFileId?: string;
+  activeFileId?: string | null;
 }
 
 const CodeEditor = ({
