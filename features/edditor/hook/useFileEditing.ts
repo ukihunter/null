@@ -58,22 +58,33 @@ export function useFileEditing(
     const channel = pusher.subscribe(channelName) as PresenceChannel;
     channelRef.current = channel;
 
-    // Listen for file editing state changes
+    // Listen for file editing state changes from OTHER users only
     channel.bind("client-file-editing-start", (data: FileEditingState) => {
-      setFileEditing((prev) => {
-        const next = new Map(prev);
-        next.set(data.fileId, data);
-        return next;
-      });
+      // Only store if it's from another user, NOT from ourselves
+      if (data.userId !== userId) {
+        console.log(`User ${data.userName} started editing ${data.fileId}`);
+        setFileEditing((prev) => {
+          const next = new Map(prev);
+          next.set(data.fileId, data);
+          return next;
+        });
+      }
     });
 
-    channel.bind("client-file-editing-stop", (data: { fileId: string }) => {
-      setFileEditing((prev) => {
-        const next = new Map(prev);
-        next.delete(data.fileId);
-        return next;
-      });
-    });
+    channel.bind(
+      "client-file-editing-stop",
+      (data: { fileId: string; userId: string }) => {
+        // Only remove if it's from another user
+        if (data.userId !== userId) {
+          console.log(`User stopped editing ${data.fileId}`);
+          setFileEditing((prev) => {
+            const next = new Map(prev);
+            next.delete(data.fileId);
+            return next;
+          });
+        }
+      },
+    );
 
     return () => {
       pusher.unsubscribe(channelName);
@@ -85,6 +96,7 @@ export function useFileEditing(
     (fileId: string) => {
       if (!channelRef.current || !userId) return;
 
+      // Only update local state, don't add to fileEditing map
       setCurrentEditingFileId(fileId);
 
       // Clear existing timeout
@@ -93,6 +105,7 @@ export function useFileEditing(
       }
 
       try {
+        console.log(`Broadcasting file editing start: ${fileId}`);
         channelRef.current.trigger("client-file-editing-start", {
           fileId,
           userId,
@@ -104,56 +117,61 @@ export function useFileEditing(
 
         // Reset the timeout to refresh the editing state periodically
         editingTimeoutRef.current = setTimeout(() => {
-          if (currentEditingFileId === fileId) {
-            startEditingFile(fileId);
-          }
+          startEditingFile(fileId);
         }, 30000); // Refresh every 30 seconds
       } catch (error) {
         console.error("Failed to broadcast file editing start:", error);
       }
     },
-    [userId, userName, userImage, currentUserColor, currentEditingFileId],
+    [userId, userName, userImage, currentUserColor],
   );
 
-  const stopEditingFile = useCallback((fileId: string) => {
-    if (!channelRef.current) return;
+  const stopEditingFile = useCallback(
+    (fileId: string) => {
+      if (!channelRef.current) return;
 
-    setCurrentEditingFileId(null);
+      setCurrentEditingFileId(null);
 
-    // Clear timeout
-    if (editingTimeoutRef.current) {
-      clearTimeout(editingTimeoutRef.current);
-      editingTimeoutRef.current = null;
-    }
+      // Clear timeout
+      if (editingTimeoutRef.current) {
+        clearTimeout(editingTimeoutRef.current);
+        editingTimeoutRef.current = null;
+      }
 
-    try {
-      channelRef.current.trigger("client-file-editing-stop", {
-        fileId,
-      });
-    } catch (error) {
-      console.error("Failed to broadcast file editing stop:", error);
-    }
-  }, []);
+      try {
+        console.log(`Broadcasting file editing stop: ${fileId}`);
+        channelRef.current.trigger("client-file-editing-stop", {
+          fileId,
+          userId,
+        });
+      } catch (error) {
+        console.error("Failed to broadcast file editing stop:", error);
+      }
+    },
+    [userId],
+  );
 
   // Check if a specific file is being edited by someone else
   const isFileBeingEditedByOther = useCallback(
     (fileId: string) => {
+      // fileEditing map only contains OTHER users' editing states
+      // If it's in here, someone else is editing it
       const editingState = fileEditing.get(fileId);
-      return editingState && editingState.userId !== userId;
+      return editingState !== undefined;
     },
-    [fileEditing, userId],
+    [fileEditing],
   );
 
-  // Get who is editing a file
+  // Get who is editing a file (only other users)
   const getFileEditor = useCallback(
     (fileId: string) => {
       const editingState = fileEditing.get(fileId);
-      if (editingState && editingState.userId !== userId) {
+      if (editingState) {
         return editingState;
       }
       return null;
     },
-    [fileEditing, userId],
+    [fileEditing],
   );
 
   return {
