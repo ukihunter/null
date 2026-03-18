@@ -154,12 +154,18 @@ export function useFileEditing(
   // Check if a specific file is being edited by someone else
   const isFileBeingEditedByOther = useCallback(
     (fileId: string) => {
+      // If the current user is already editing this file, it should NOT be read-only
+      // This handles the case where both users open simultaneously
+      if (currentEditingFileId === fileId) {
+        return false;
+      }
+      
       // fileEditing map only contains OTHER users' editing states
       // If it's in here, someone else is editing it
       const editingState = fileEditing.get(fileId);
       return editingState !== undefined;
     },
-    [fileEditing],
+    [fileEditing, currentEditingFileId],
   );
 
   // Get who is editing a file (only other users)
