@@ -830,7 +830,10 @@ const arePropsEqual = (
   }
 
   // Check if active file changed
-  if (prevProps.activeFile?.id !== nextProps.activeFile?.id) {
+  if (
+    prevProps.activeFile?.filename !== nextProps.activeFile?.filename ||
+    prevProps.activeFile?.fileExtension !== nextProps.activeFile?.fileExtension
+  ) {
     return false;
   }
 
