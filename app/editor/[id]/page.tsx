@@ -369,6 +369,23 @@ const Page = () => {
   }, [activeFileId, updateFileContent]);
 
   const lastBroadcastContentRef = useRef<Map<string, string>>(new Map());
+  const isInitializingRef = useRef(false);
+
+  // Initialize broadcast tracking when file is opened
+  React.useEffect(() => {
+    if (activeFileId && activeFile) {
+      // Set the initial content as the "last broadcast" to prevent onChange on mount from triggering
+      lastBroadcastContentRef.current.set(activeFileId, activeFile.content || "");
+      isInitializingRef.current = true;
+      
+      // Allow onChange to process after a small delay
+      const timeout = setTimeout(() => {
+        isInitializingRef.current = false;
+      }, 50);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [activeFileId, activeFile?.id]); // Only re-init when file ID changes, not content
 
   // Handle file editing state - only broadcast when actively making changes
   React.useEffect(() => {
@@ -693,18 +710,24 @@ const Page = () => {
                               if (activeFileId && activeFile) {
                                 updateFileContent(activeFileId, value);
 
-                                // Start broadcasting editing state on first change
-                                const lastContent =
-                                  lastBroadcastContentRef.current.get(
-                                    activeFileId,
-                                  ) ?? activeFile.content;
-                                if (value !== lastContent) {
-                                  // User is actively making changes - start broadcasting editing
-                                  fileEditing.startEditingFile(activeFileId);
-                                  lastBroadcastContentRef.current.set(
-                                    activeFileId,
-                                    value,
-                                  );
+                                // Skip onChange during initial mount to prevent false positives
+                                if (!isInitializingRef.current) {
+                                  // Get the last known content for this file
+                                  const lastContent =
+                                    lastBroadcastContentRef.current.get(activeFileId);
+                                  
+                                  // Only broadcast if content has ACTUALLY changed from what we last saw
+                                  if (lastContent !== undefined && value !== lastContent) {
+                                    // User is actively making changes - start broadcasting editing
+                                    console.log(
+                                      `Content changed for ${activeFileId}. Broadcasting start edit.`,
+                                    );
+                                    fileEditing.startEditingFile(activeFileId);
+                                    lastBroadcastContentRef.current.set(
+                                      activeFileId,
+                                      value,
+                                    );
+                                  }
                                 }
 
                                 // Broadcast to collaborators (debounced 300ms)

@@ -51,7 +51,19 @@ export function useFileEditing(
   const currentUserColor = generateColor(userId);
 
   useEffect(() => {
-    if (!sessionId || !userId) return;
+    if (!sessionId || !userId) {
+      console.log(
+        "useFileEditing: Waiting for sessionId and userId",
+        { sessionId, userId },
+      );
+      return;
+    }
+
+    console.log("useFileEditing: Initializing with", {
+      sessionId,
+      userId,
+      userName,
+    });
 
     const pusher = getPusherClient();
     const channelName = `presence-session-${sessionId}`;
@@ -62,12 +74,18 @@ export function useFileEditing(
     channel.bind("client-file-editing-start", (data: FileEditingState) => {
       // Only store if it's from another user, NOT from ourselves
       if (data.userId !== userId) {
-        console.log(`User ${data.userName} started editing ${data.fileId}`);
+        console.log(
+          `File editing start detected: User ${data.userName} editing ${data.fileId}`,
+        );
         setFileEditing((prev) => {
           const next = new Map(prev);
           next.set(data.fileId, data);
           return next;
         });
+      } else {
+        console.log(
+          `Ignoring own file-editing-start event for ${data.fileId}`,
+        );
       }
     });
 
@@ -76,25 +94,38 @@ export function useFileEditing(
       (data: { fileId: string; userId: string }) => {
         // Only remove if it's from another user
         if (data.userId !== userId) {
-          console.log(`User stopped editing ${data.fileId}`);
+          console.log(
+            `File editing stop detected: User stopped editing ${data.fileId}`,
+          );
           setFileEditing((prev) => {
             const next = new Map(prev);
             next.delete(data.fileId);
             return next;
           });
+        } else {
+          console.log(
+            `Ignoring own file-editing-stop event for ${data.fileId}`,
+          );
         }
       },
     );
 
     return () => {
+      console.log("useFileEditing: Cleaning up channel subscription");
       pusher.unsubscribe(channelName);
       channelRef.current = null;
     };
-  }, [sessionId, userId]);
+  }, [sessionId, userId, userName]);
 
   const startEditingFile = useCallback(
     (fileId: string) => {
-      if (!channelRef.current || !userId) return;
+      if (!channelRef.current || !userId) {
+        console.warn(
+          "startEditingFile: Cannot start - missing channel or userId",
+          { hasChannel: !!channelRef.current, hasUserId: !!userId },
+        );
+        return;
+      }
 
       // Only update local state, don't add to fileEditing map
       setCurrentEditingFileId(fileId);
@@ -105,7 +136,7 @@ export function useFileEditing(
       }
 
       try {
-        console.log(`Broadcasting file editing start: ${fileId}`);
+        console.log(`Broadcasting file editing start: ${fileId} by ${userId}`);
         channelRef.current.trigger("client-file-editing-start", {
           fileId,
           userId,
@@ -117,6 +148,7 @@ export function useFileEditing(
 
         // Reset the timeout to refresh the editing state periodically
         editingTimeoutRef.current = setTimeout(() => {
+          console.log(`Refreshing editing state for ${fileId}`);
           startEditingFile(fileId);
         }, 30000); // Refresh every 30 seconds
       } catch (error) {
@@ -128,7 +160,10 @@ export function useFileEditing(
 
   const stopEditingFile = useCallback(
     (fileId: string) => {
-      if (!channelRef.current) return;
+      if (!channelRef.current) {
+        console.warn(`stopEditingFile: Cannot stop - missing channel for ${fileId}`);
+        return;
+      }
 
       setCurrentEditingFileId(null);
 
@@ -139,7 +174,7 @@ export function useFileEditing(
       }
 
       try {
-        console.log(`Broadcasting file editing stop: ${fileId}`);
+        console.log(`Broadcasting file editing stop: ${fileId} by ${userId}`);
         channelRef.current.trigger("client-file-editing-stop", {
           fileId,
           userId,
@@ -157,13 +192,24 @@ export function useFileEditing(
       // If the current user is already editing this file, it should NOT be read-only
       // This handles the case where both users open simultaneously
       if (currentEditingFileId === fileId) {
+        console.log(
+          `isFileBeingEditedByOther(${fileId}): FALSE - current user is editing`,
+        );
         return false;
       }
 
       // fileEditing map only contains OTHER users' editing states
       // If it's in here, someone else is editing it
       const editingState = fileEditing.get(fileId);
-      return editingState !== undefined;
+      const isEditing = editingState !== undefined;
+      
+      if (isEditing) {
+        console.log(
+          `isFileBeingEditedByOther(${fileId}): TRUE - ${editingState.userName} is editing`,
+        );
+      }
+      
+      return isEditing;
     },
     [fileEditing, currentEditingFileId],
   );
