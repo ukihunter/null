@@ -527,7 +527,7 @@ const CodeEditor = ({
 
       const newPosition = e.position;
 
-      // Broadcast cursor position to collaborators (debounced to 100ms)
+      // Broadcast cursor position to collaborators (debounced to 300ms to reduce excessive updates)
       if (onCursorChange && activeFileId) {
         if (cursorBroadcastTimerRef.current) {
           clearTimeout(cursorBroadcastTimerRef.current);
@@ -538,7 +538,7 @@ const CodeEditor = ({
           );
           onCursorChange(newPosition.lineNumber, newPosition.column);
           cursorBroadcastTimerRef.current = null;
-        }, 100);
+        }, 300);
       }
 
       // Clear existing suggestion if cursor moved away
@@ -813,4 +813,59 @@ const CodeEditor = ({
   );
 };
 
-export default CodeEditor;
+// Custom comparison for memoization to prevent unnecessary re-renders when cursor data doesn't actually change
+const arePropsEqual = (
+  prevProps: CodeEditorProps,
+  nextProps: CodeEditorProps,
+) => {
+  // Quick checks for simple props
+  if (
+    prevProps.content !== nextProps.content ||
+    prevProps.suggestion !== nextProps.suggestion ||
+    prevProps.suggestionLoading !== nextProps.suggestionLoading ||
+    prevProps.readOnly !== nextProps.readOnly ||
+    prevProps.activeFileId !== nextProps.activeFileId
+  ) {
+    return false;
+  }
+
+  // Check if active file changed
+  if (prevProps.activeFile?.id !== nextProps.activeFile?.id) {
+    return false;
+  }
+
+  // Special handling for remoteCursors Map
+  // Only consider them different if the actual cursor data changed, not just the Map reference
+  const prevCursors = prevProps.remoteCursors || new Map();
+  const nextCursors = nextProps.remoteCursors || new Map();
+
+  if (prevCursors.size !== nextCursors.size) {
+    return false;
+  }
+
+  // Check if any cursor positions actually changed
+  for (const [userId, nextCursor] of nextCursors) {
+    const prevCursor = prevCursors.get(userId);
+    if (
+      !prevCursor ||
+      prevCursor.line !== nextCursor.line ||
+      prevCursor.column !== nextCursor.column ||
+      prevCursor.fileId !== nextCursor.fileId
+    ) {
+      return false;
+    }
+  }
+
+  // Check suggestion position
+  if (
+    prevProps.suggestionPosition?.line !== nextProps.suggestionPosition?.line ||
+    prevProps.suggestionPosition?.column !==
+      nextProps.suggestionPosition?.column
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+export default React.memo(CodeEditor, arePropsEqual);
