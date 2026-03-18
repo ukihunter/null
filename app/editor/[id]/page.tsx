@@ -694,11 +694,17 @@ const Page = () => {
                                 updateFileContent(activeFileId, value);
 
                                 // Start broadcasting editing state on first change
-                                const lastContent = lastBroadcastContentRef.current.get(activeFileId) ?? activeFile.content;
+                                const lastContent =
+                                  lastBroadcastContentRef.current.get(
+                                    activeFileId,
+                                  ) ?? activeFile.content;
                                 if (value !== lastContent) {
                                   // User is actively making changes - start broadcasting editing
                                   fileEditing.startEditingFile(activeFileId);
-                                  lastBroadcastContentRef.current.set(activeFileId, value);
+                                  lastBroadcastContentRef.current.set(
+                                    activeFileId,
+                                    value,
+                                  );
                                 }
 
                                 // Broadcast to collaborators (debounced 300ms)
