@@ -375,14 +375,17 @@ const Page = () => {
   React.useEffect(() => {
     if (activeFileId && activeFile) {
       // Set the initial content as the "last broadcast" to prevent onChange on mount from triggering
-      lastBroadcastContentRef.current.set(activeFileId, activeFile.content || "");
+      lastBroadcastContentRef.current.set(
+        activeFileId,
+        activeFile.content || "",
+      );
       isInitializingRef.current = true;
-      
+
       // Allow onChange to process after a small delay
       const timeout = setTimeout(() => {
         isInitializingRef.current = false;
       }, 50);
-      
+
       return () => clearTimeout(timeout);
     }
   }, [activeFileId, activeFile?.id]); // Only re-init when file ID changes, not content
@@ -714,10 +717,15 @@ const Page = () => {
                                 if (!isInitializingRef.current) {
                                   // Get the last known content for this file
                                   const lastContent =
-                                    lastBroadcastContentRef.current.get(activeFileId);
-                                  
+                                    lastBroadcastContentRef.current.get(
+                                      activeFileId,
+                                    );
+
                                   // Only broadcast if content has ACTUALLY changed from what we last saw
-                                  if (lastContent !== undefined && value !== lastContent) {
+                                  if (
+                                    lastContent !== undefined &&
+                                    value !== lastContent
+                                  ) {
                                     // User is actively making changes - start broadcasting editing
                                     console.log(
                                       `Content changed for ${activeFileId}. Broadcasting start edit.`,

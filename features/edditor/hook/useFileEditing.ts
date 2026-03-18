@@ -52,10 +52,10 @@ export function useFileEditing(
 
   useEffect(() => {
     if (!sessionId || !userId) {
-      console.log(
-        "useFileEditing: Waiting for sessionId and userId",
-        { sessionId, userId },
-      );
+      console.log("useFileEditing: Waiting for sessionId and userId", {
+        sessionId,
+        userId,
+      });
       return;
     }
 
@@ -83,9 +83,7 @@ export function useFileEditing(
           return next;
         });
       } else {
-        console.log(
-          `Ignoring own file-editing-start event for ${data.fileId}`,
-        );
+        console.log(`Ignoring own file-editing-start event for ${data.fileId}`);
       }
     });
 
@@ -161,7 +159,9 @@ export function useFileEditing(
   const stopEditingFile = useCallback(
     (fileId: string) => {
       if (!channelRef.current) {
-        console.warn(`stopEditingFile: Cannot stop - missing channel for ${fileId}`);
+        console.warn(
+          `stopEditingFile: Cannot stop - missing channel for ${fileId}`,
+        );
         return;
       }
 
@@ -202,13 +202,13 @@ export function useFileEditing(
       // If it's in here, someone else is editing it
       const editingState = fileEditing.get(fileId);
       const isEditing = editingState !== undefined;
-      
+
       if (isEditing) {
         console.log(
           `isFileBeingEditedByOther(${fileId}): TRUE - ${editingState.userName} is editing`,
         );
       }
-      
+
       return isEditing;
     },
     [fileEditing, currentEditingFileId],
