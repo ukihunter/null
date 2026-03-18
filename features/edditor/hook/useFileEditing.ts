@@ -159,7 +159,7 @@ export function useFileEditing(
       if (currentEditingFileId === fileId) {
         return false;
       }
-      
+
       // fileEditing map only contains OTHER users' editing states
       // If it's in here, someone else is editing it
       const editingState = fileEditing.get(fileId);
