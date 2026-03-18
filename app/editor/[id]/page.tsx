@@ -368,12 +368,11 @@ const Page = () => {
     return () => window.removeEventListener("collab-code-change", handler);
   }, [activeFileId, updateFileContent]);
 
-  // Handle file editing state - start/stop editing when active file changes
-  React.useEffect(() => {
-    if (activeFileId) {
-      fileEditing.startEditingFile(activeFileId);
-    }
+  const lastBroadcastContentRef = useRef<Map<string, string>>(new Map());
 
+  // Handle file editing state - only broadcast when actively making changes
+  React.useEffect(() => {
+    // Only clean up when switching files or closing
     return () => {
       if (activeFileId) {
         fileEditing.stopEditingFile(activeFileId);
@@ -693,6 +692,14 @@ const Page = () => {
                             onContentChange={async (value: string) => {
                               if (activeFileId && activeFile) {
                                 updateFileContent(activeFileId, value);
+
+                                // Start broadcasting editing state on first change
+                                const lastContent = lastBroadcastContentRef.current.get(activeFileId) ?? activeFile.content;
+                                if (value !== lastContent) {
+                                  // User is actively making changes - start broadcasting editing
+                                  fileEditing.startEditingFile(activeFileId);
+                                  lastBroadcastContentRef.current.set(activeFileId, value);
+                                }
 
                                 // Broadcast to collaborators (debounced 300ms)
                                 if (broadcastTimerRef.current) {
