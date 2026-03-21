@@ -52,10 +52,13 @@ import {
   Copy,
   Download,
   Eye,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Project } from "../types";
 import { EdditorSession } from "@prisma/client";
+import MarkedToggleButton from "./marked-toggle-button";
 
 interface ProjectTableProps {
   projects: Project[];
@@ -70,6 +73,9 @@ interface ProjectTableProps {
     id: string,
   ) => Promise<EdditorSession | { error: string } | null | undefined>;
   onMarkasFavorite?: (id: string) => Promise<void>;
+  toggleStar?: (
+    id: string,
+  ) => Promise<{ success?: boolean; isMarked?: boolean; error?: string }>;
 }
 
 interface EdditProjectData {
@@ -82,6 +88,7 @@ export default function ProjectTable({
   onDeleteProject,
   onUpdateProject,
   onDuplicateProject,
+  toggleStar,
 }: ProjectTableProps) {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -93,6 +100,8 @@ export default function ProjectTable({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [favourite, setFavourite] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const handleDuplicateProject = async (project: Project) => {
     if (!onDuplicateProject) return;
@@ -146,6 +155,24 @@ export default function ProjectTable({
     toast.success("Project URL copied to clipboard!");
   };
 
+  // Pagination calculations
+  const totalPages = Math.ceil(projects.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProjects = projects.slice(startIndex, endIndex);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <>
       <div className="border rounded-lg overflow-hidden">
@@ -161,7 +188,7 @@ export default function ProjectTable({
           </TableHeader>
 
           <TableBody>
-            {projects.map((project) => (
+            {paginatedProjects.map((project) => (
               <TableRow key={project.id}>
                 <TableCell>
                   <div className="flex flex-col">
@@ -212,10 +239,13 @@ export default function ProjectTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        {/* <MarkedToggleButton
-                          markedForRevision={project.Starmark[0]?.isMarked}
-                          id={project.id}
-                        />*/}
+                        {toggleStar && (
+                          <MarkedToggleButton
+                            markedForRevision={project.Starmark[0]?.isMarked}
+                            id={project.id}
+                            toggleFunction={toggleStar}
+                          />
+                        )}
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link
@@ -271,6 +301,51 @@ export default function ProjectTable({
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      {projects.length > itemsPerPage && (
+        <div className="flex items-center justify-between mt-4 px-4 py-2">
+          <div className="text-sm text-gray-600">
+            Showing {startIndex + 1} to {Math.min(endIndex, projects.length)} of{" "}
+            {projects.length} projects
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className="w-8 h-8 p-0"
+                  >
+                    {page}
+                  </Button>
+                ),
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Edit Project Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">

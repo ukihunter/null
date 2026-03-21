@@ -427,3 +427,66 @@ export const importGithubRepo = async (githubUrl: string) => {
     return { success: false as const, reason: "db_error" };
   }
 };
+
+export const toggleProjectStar = async (edditorSessionId: string) => {
+  try {
+    const user = await currentUser();
+
+    if (!user?.id) {
+      return { error: "Not authenticated" };
+    }
+
+    // Resolve real DB user ID
+    let realUserId = user.id;
+    if (user.email) {
+      const dbUser = await db.user.findUnique({
+        where: { email: user.email },
+        select: { id: true },
+      });
+      if (dbUser) {
+        realUserId = dbUser.id;
+      }
+    }
+
+    // Check if star mark already exists
+    const existingStar = await db.starMark.findUnique({
+      where: {
+        userId_edditorSessionId: {
+          userId: realUserId,
+          edditorSessionId: edditorSessionId,
+        },
+      },
+    });
+
+    if (existingStar) {
+      // Toggle the isMarked flag
+      const updatedStar = await db.starMark.update({
+        where: {
+          userId_edditorSessionId: {
+            userId: realUserId,
+            edditorSessionId: edditorSessionId,
+          },
+        },
+        data: {
+          isMarked: !existingStar.isMarked,
+        },
+      });
+      revalidatePath("/dashboard");
+      return { success: true, isMarked: updatedStar.isMarked };
+    } else {
+      // Create new star mark
+      const newStar = await db.starMark.create({
+        data: {
+          userId: realUserId,
+          edditorSessionId: edditorSessionId,
+          isMarked: true,
+        },
+      });
+      revalidatePath("/dashboard");
+      return { success: true, isMarked: newStar.isMarked };
+    }
+  } catch (error) {
+    console.error("[toggleProjectStar] Error:", error);
+    return { error: "Failed to toggle star" };
+  }
+};

@@ -8,6 +8,7 @@ import {
   duplicateEdditorSession,
   editprojectById,
   getEdditorSessionsForUser,
+  toggleProjectStar,
 } from "@/features/dashboard/actions";
 import ProjectTable from "@/features/dashboard/components/project-table";
 
@@ -55,6 +56,7 @@ const page = async () => {
             onDeleteProject={deleteEdditorSession}
             onUpdateProject={editprojectById}
             onDuplicateProject={duplicateEdditorSession}
+            toggleStar={toggleProjectStar}
           />
         )}
       </div>
