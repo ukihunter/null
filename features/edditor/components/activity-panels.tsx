@@ -263,7 +263,7 @@ export function SearchPanel() {
         <Input placeholder="Search files..." className="h-8" />
       </div>
       <ScrollArea className="flex-1 p-4">
-        <p className="text-sm text-muted-foreground">No results</p>
+        <p className="text-sm text-muted-foreground">No results found here </p>
       </ScrollArea>
     </div>
   );
