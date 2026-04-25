@@ -72,12 +72,13 @@ export function useCollaboration(sessionId: string) {
     new Map(),
   );
   const [isConnected, setIsConnected] = useState(false);
+  const [isCollaborationActive, setIsCollaborationActive] = useState(false);
   const channelRef = useRef<PresenceChannel | null>(null);
 
   const currentUserColor = useMemo(() => generateColor(userId), [userId]);
 
   useEffect(() => {
-    if (!sessionId || !userId) return;
+    if (!sessionId || !userId || !isCollaborationActive) return;
 
     // Load initial messages via promise chain
     fetch(`/api/collaboration/chat?sessionId=${sessionId}`)
@@ -163,12 +164,22 @@ export function useCollaboration(sessionId: string) {
       });
     });
 
+    channel.bind(
+      "client-file-saved",
+      (data: { fileId: string; content: string; userId: string }) => {
+        if (data.userId === userId) return;
+        window.dispatchEvent(
+          new CustomEvent("collab-file-saved", { detail: data }),
+        );
+      },
+    );
+
     return () => {
       pusher.unsubscribe(channelName);
       channelRef.current = null;
       setIsConnected(false);
     };
-  }, [sessionId, userId]);
+  }, [sessionId, userId, isCollaborationActive]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -181,6 +192,22 @@ export function useCollaboration(sessionId: string) {
         });
       } catch (e) {
         console.error("Failed to send message", e);
+      }
+    },
+    [sessionId],
+  );
+
+  const logActivity = useCallback(
+    async (type: string, meta?: Record<string, string>) => {
+      if (!sessionId) return;
+      try {
+        await fetch("/api/collaboration/history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, type, meta }),
+        });
+      } catch (e) {
+        console.error("Failed to log collaboration activity", e);
       }
     },
     [sessionId],
@@ -238,14 +265,48 @@ export function useCollaboration(sessionId: string) {
     [userId, userName, currentUserColor],
   );
 
+  const broadcastFileSaved = useCallback(
+    (fileId: string, content: string) => {
+      if (!channelRef.current || !userId) return;
+      try {
+        channelRef.current.trigger("client-file-saved", {
+          fileId,
+          content,
+          userId,
+        });
+      } catch {
+        // Silently ignore — requires authenticated presence channel
+      }
+    },
+    [userId],
+  );
+
+  const startCollaboration = useCallback(() => {
+    setIsCollaborationActive(true);
+    void logActivity("session_started");
+  }, [logActivity]);
+
+  const stopCollaboration = useCallback(() => {
+    void logActivity("session_stopped");
+    setIsCollaborationActive(false);
+    setActiveUsers([]);
+    setCursors(new Map());
+    setIsConnected(false);
+  }, [logActivity]);
+
   return {
     activeUsers,
     messages,
     cursors,
     isConnected,
+    isCollaborationActive,
     sendMessage,
     broadcastCodeChange,
     broadcastCursor,
+    broadcastFileSaved,
+    logActivity,
+    startCollaboration,
+    stopCollaboration,
     currentUserId: userId,
     currentUserColor,
   };

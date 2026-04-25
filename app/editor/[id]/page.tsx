@@ -98,6 +98,7 @@ const Page = () => {
     session?.user?.id ?? "",
     session?.user?.name ?? "Anonymous",
     session?.user?.image ?? null,
+    collab.isCollaborationActive,
   );
   const broadcastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -195,6 +196,7 @@ const Page = () => {
     },
     [handleRenameFolder, saveTemplateData],
   );
+  const [cursor, setCursor] = useState({ line: 1, column: 1 });
 
   const activeFile = openFiles.find((file) => file.id === activeFileId);
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges);
@@ -415,6 +417,7 @@ const Page = () => {
         await saveTemplateData(updatedTemplateData);
         console.log("Successfully saved to database");
         setTemplateData(updatedTemplateData);
+        collab.broadcastFileSaved(targetFileId, fileToSave.content);
 
         // Reload iframe for static files (HTML, CSS) after save
         if (filePath.match(/\.(html|css)$/)) {
@@ -447,6 +450,7 @@ const Page = () => {
     },
     [
       activeFileId,
+      collab,
       openFiles,
       writeFileSync,
       instance,
@@ -499,6 +503,33 @@ const Page = () => {
     window.addEventListener("collab-code-change", handler);
     return () => window.removeEventListener("collab-code-change", handler);
   }, [activeFileId, updateFileContent]);
+
+  // Listen for "saved" updates from collaborators and apply them locally.
+  React.useEffect(() => {
+    const savedHandler = (e: Event) => {
+      const { fileId, content } = (e as CustomEvent).detail as {
+        fileId: string;
+        content: string;
+      };
+
+      updateFileContent(fileId, content);
+      setOpenFiles((prev) =>
+        prev.map((file) =>
+          file.id === fileId
+            ? {
+                ...file,
+                content,
+                originalContent: content,
+                hasUnsavedChanges: false,
+              }
+            : file,
+        ),
+      );
+    };
+
+    window.addEventListener("collab-file-saved", savedHandler);
+    return () => window.removeEventListener("collab-file-saved", savedHandler);
+  }, [setOpenFiles, updateFileContent]);
 
   const lastBroadcastContentRef = useRef<Map<string, string>>(new Map());
   const isInitializingRef = useRef(false);
@@ -672,6 +703,15 @@ const Page = () => {
                 isConnected={collab.isConnected}
                 currentUserId={collab.currentUserId}
                 sendMessage={collab.sendMessage}
+                onLogActivity={collab.logActivity}
+                isCollaborationActive={collab.isCollaborationActive}
+                onToggleCollaboration={() => {
+                  if (collab.isCollaborationActive) {
+                    collab.stopCollaboration();
+                  } else {
+                    collab.startCollaboration();
+                  }
+                }}
               />
             )}
             {sidebarOpen && activeView === "account" && <AccountPanel />}
@@ -695,7 +735,7 @@ const Page = () => {
                       <Button
                         size={"sm"}
                         variant={"outline"}
-                        onClick={() => {}}
+                        onClick={() => handleSave()}
                         disabled={!activeFile || !activeFile.hasUnsavedChanges}
                       >
                         <Save className="size-4" />
@@ -783,9 +823,7 @@ const Page = () => {
                                     />
                                   )}
                                   <span
-                                    className="ml-2 h-4 w-4 hover:bg-destructive hover:text-destructive-forground rounded-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer
-                              
-                              "
+                                    className="ml-2 h-4 w-4 hover:bg-destructive hover:text-destructive-forground rounded-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       closeFile(file.id);
@@ -851,6 +889,13 @@ const Page = () => {
                             content={activeFile?.content || ""}
                             onContentChange={async (value: string) => {
                               if (activeFileId && activeFile) {
+                                if (
+                                  fileEditing.isFileBeingEditedByOther(
+                                    activeFileId,
+                                  )
+                                ) {
+                                  return;
+                                }
                                 updateFileContent(activeFileId, value);
 
                                 // Skip onChange during initial mount to prevent false positives
@@ -920,6 +965,7 @@ const Page = () => {
                                   column,
                                 );
                               }
+                              setCursor({ line, column });
                             }}
                             remoteCursors={collab.cursors}
                             activeFileId={activeFileId}
@@ -976,6 +1022,36 @@ const Page = () => {
                     </p>
                   </div>
                 )}
+              </div>
+              {/*  FOOTER BAR */}
+              <div className="h-8 border-t bg-[#0a0a0a] flex items-center justify-between px-3 text-xs">
+                {/* LEFT */}
+                <div className="flex items-center gap-4">
+                  <span>
+                    {activeFile
+                      ? `${activeFile.filename}.${activeFile.fileExtension}`
+                      : "No file"}
+                  </span>
+
+                  <span
+                    className={
+                      hasUnsavedChanges ? "text-orange-500" : "text-green-500"
+                    }
+                  >
+                    {hasUnsavedChanges ? "Unsaved Changes" : "Saved"}
+                  </span>
+                </div>
+
+                {/* RIGHT */}
+                <div className="flex items-center gap-4">
+                  <span>
+                    Ln {cursor.line}, Col {cursor.column}
+                  </span>
+
+                  <span>
+                    {activeFile?.fileExtension?.toUpperCase() || "TXT"}
+                  </span>
+                </div>
               </div>
             </SidebarInset>
           </div>

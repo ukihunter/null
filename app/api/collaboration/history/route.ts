@@ -1,7 +1,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import pusherServer from "@/lib/pusher";
 import { NextRequest, NextResponse } from "next/server";
+
+const ACTIVITY_PREFIX = "__COLLAB_ACTIVITY__:";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -11,15 +12,26 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { sessionId, content } = body;
+  const { sessionId, type, meta } = body as {
+    sessionId?: string;
+    type?: string;
+    meta?: Record<string, string>;
+  };
 
-  if (!sessionId || !content?.trim()) {
+  if (!sessionId || !type) {
     return NextResponse.json({ error: "Invalid data" }, { status: 400 });
   }
 
-  const message = await db.chatMessage.create({
+  const safeMeta = meta && Object.keys(meta).length > 0 ? meta : undefined;
+  const content = `${ACTIVITY_PREFIX}${JSON.stringify({
+    type,
+    meta: safeMeta,
+    at: new Date().toISOString(),
+  })}`;
+
+  const activity = await db.chatMessage.create({
     data: {
-      content: content.trim(),
+      content,
       edditorSessionId: sessionId,
       userId: session.user.id,
       userName: session.user.name ?? "Anonymous",
@@ -27,16 +39,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await pusherServer.trigger(`presence-session-${sessionId}`, "chat-message", {
-    id: message.id,
-    content: message.content,
-    userId: message.userId,
-    userName: message.userName,
-    userImage: message.userImage,
-    createdAt: message.createdAt.toISOString(),
-  });
-
-  return NextResponse.json(message);
+  return NextResponse.json(activity);
 }
 
 export async function GET(req: NextRequest) {
@@ -53,16 +56,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Session ID required" }, { status: 400 });
   }
 
-  const messages = await db.chatMessage.findMany({
+  const records = await db.chatMessage.findMany({
     where: {
       edditorSessionId: sessionId,
-      NOT: {
-        content: { startsWith: "__COLLAB_ACTIVITY__:" },
-      },
+      content: { startsWith: ACTIVITY_PREFIX },
     },
-    orderBy: { createdAt: "asc" },
-    take: 100,
+    orderBy: { createdAt: "desc" },
+    take: 200,
   });
 
-  return NextResponse.json(messages);
+  return NextResponse.json(records);
 }

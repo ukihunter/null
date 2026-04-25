@@ -18,6 +18,11 @@ import {
   Send,
   Phone,
   PhoneOff,
+  Video,
+  VideoOff,
+  Minimize2,
+  Maximize2,
+  GripHorizontal,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -786,6 +791,9 @@ export interface CollaborationPanelProps {
   isConnected: boolean;
   currentUserId: string;
   sendMessage: (content: string) => Promise<void>;
+  isCollaborationActive: boolean;
+  onToggleCollaboration: () => void;
+  onLogActivity?: (type: string, meta?: Record<string, string>) => Promise<void>;
 }
 
 export function CollaborationPanel({
@@ -795,12 +803,29 @@ export function CollaborationPanel({
   isConnected,
   currentUserId,
   sendMessage,
+  isCollaborationActive,
+  onToggleCollaboration,
+  onLogActivity,
 }: CollaborationPanelProps) {
   const [input, setInput] = React.useState("");
   const [copied, setCopied] = React.useState(false);
-  const [voiceOpen, setVoiceOpen] = React.useState(false);
+  const [callMode, setCallMode] = React.useState<"none" | "voice" | "video">(
+    "none",
+  );
   const [sending, setSending] = React.useState(false);
+  const [isVideoBoxMinimized, setIsVideoBoxMinimized] = React.useState(false);
+  const [videoBoxPosition, setVideoBoxPosition] = React.useState({
+    x: 0,
+    y: 0,
+  });
+  const [videoBoxPositionInitialized, setVideoBoxPositionInitialized] =
+    React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const dragStateRef = React.useRef({
+    dragging: false,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   // Auto-scroll chat to bottom
   React.useEffect(() => {
@@ -848,6 +873,82 @@ export function CollaborationPanel({
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
+  const getCallUrl = React.useCallback(
+    (mode: "voice" | "video") => {
+      return `/call/${sessionId}?mode=${mode}`;
+    },
+    [sessionId],
+  );
+
+  const startCall = React.useCallback(
+    (mode: "voice" | "video") => {
+      if (!isCollaborationActive) return;
+      setCallMode(mode);
+      void onLogActivity?.(`${mode}_call_joined`);
+    },
+    [isCollaborationActive, onLogActivity],
+  );
+
+  const endCall = React.useCallback(() => {
+    if (callMode === "voice") {
+      void onLogActivity?.("voice_call_left");
+    }
+    if (callMode === "video") {
+      void onLogActivity?.("video_call_left");
+    }
+    setCallMode("none");
+  }, [callMode, onLogActivity]);
+
+  React.useEffect(() => {
+    if (!isCollaborationActive) {
+      endCall();
+    }
+  }, [isCollaborationActive, endCall]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (callMode !== "video" || videoBoxPositionInitialized) return;
+
+    setVideoBoxPosition({
+      x: Math.max(16, window.innerWidth - 304),
+      y: Math.max(16, window.innerHeight - 220),
+    });
+    setVideoBoxPositionInitialized(true);
+  }, [callMode, videoBoxPositionInitialized]);
+
+  const handleVideoBoxMouseMove = React.useCallback((event: MouseEvent) => {
+    if (!dragStateRef.current.dragging) return;
+
+    const nextX = Math.max(8, event.clientX - dragStateRef.current.offsetX);
+    const nextY = Math.max(8, event.clientY - dragStateRef.current.offsetY);
+    setVideoBoxPosition({ x: nextX, y: nextY });
+  }, []);
+
+  const stopVideoBoxDragging = React.useCallback(() => {
+    dragStateRef.current.dragging = false;
+    window.removeEventListener("mousemove", handleVideoBoxMouseMove);
+    window.removeEventListener("mouseup", stopVideoBoxDragging);
+  }, [handleVideoBoxMouseMove]);
+
+  const startVideoBoxDragging = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      dragStateRef.current.dragging = true;
+      dragStateRef.current.offsetX = event.clientX - videoBoxPosition.x;
+      dragStateRef.current.offsetY = event.clientY - videoBoxPosition.y;
+
+      window.addEventListener("mousemove", handleVideoBoxMouseMove);
+      window.addEventListener("mouseup", stopVideoBoxDragging);
+    },
+    [handleVideoBoxMouseMove, stopVideoBoxDragging, videoBoxPosition.x, videoBoxPosition.y],
+  );
+
+  React.useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", handleVideoBoxMouseMove);
+      window.removeEventListener("mouseup", stopVideoBoxDragging);
+    };
+  }, [handleVideoBoxMouseMove, stopVideoBoxDragging]);
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
       {/* Header */}
@@ -858,10 +959,10 @@ export function CollaborationPanel({
             Collaboration
           </h2>
           <Badge
-            variant={isConnected ? "default" : "outline"}
+            variant={isConnected && isCollaborationActive ? "default" : "outline"}
             className="text-[10px] px-1.5 py-0 h-4"
           >
-            {isConnected ? (
+            {isConnected && isCollaborationActive ? (
               <span className="flex items-center gap-1">
                 <Wifi className="h-2.5 w-2.5" /> Live
               </span>
@@ -872,6 +973,16 @@ export function CollaborationPanel({
             )}
           </Badge>
         </div>
+        <Button
+          size="sm"
+          variant={isCollaborationActive ? "destructive" : "default"}
+          className="w-full h-7 text-xs mt-2"
+          onClick={onToggleCollaboration}
+        >
+          {isCollaborationActive
+            ? "Stop Collaboration"
+            : "Start Collaboration Session"}
+        </Button>
       </div>
 
       <ScrollArea className="flex-1">
@@ -942,105 +1053,201 @@ export function CollaborationPanel({
 
           <Separator />
 
-          {/* Voice Call */}
-          <div>
-            <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
-              Voice Call
-            </p>
-            <Button
-              size="sm"
-              variant={voiceOpen ? "destructive" : "outline"}
-              className="w-full h-7 text-xs gap-1.5"
-              onClick={() => setVoiceOpen((v) => !v)}
-            >
-              {voiceOpen ? (
-                <>
-                  <PhoneOff className="h-3.5 w-3.5" /> Leave Call
-                </>
-              ) : (
-                <>
-                  <Phone className="h-3.5 w-3.5" /> Join Voice Call
-                </>
-              )}
-            </Button>
-            {voiceOpen && (
-              <div className="mt-2 rounded-md overflow-hidden border h-48">
-                <iframe
-                  allow="camera; microphone; fullscreen; display-capture"
-                  src={`https://meet.jit.si/null-ide-${sessionId}#config.startWithVideoMuted=true&config.prejoinPageEnabled=false&config.toolbarButtons=["microphone","hangup"]`}
-                  className="w-full h-full"
-                  title="Voice Call"
-                />
-              </div>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Chat */}
-          <div>
-            <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
-              Chat
-            </p>
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {messages.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No messages yet. Say hi!
+          {isCollaborationActive && (
+            <>
+              {/* Voice Call */}
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+                  Voice Call
                 </p>
-              ) : (
-                messages.map((msg) => {
-                  const isOwn = msg.userId === currentUserId;
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}
-                    >
-                      {!isOwn && (
-                        <span className="text-[10px] text-muted-foreground px-1">
-                          {msg.userName ?? "Anonymous"}
-                        </span>
-                      )}
+                <Button
+                  size="sm"
+                  variant={callMode === "voice" ? "destructive" : "outline"}
+                  className="w-full h-7 text-xs gap-1.5"
+                  disabled={callMode === "video"}
+                  onClick={() =>
+                    callMode === "voice" ? endCall() : startCall("voice")
+                  }
+                >
+                  {callMode === "voice" ? (
+                    <>
+                      <PhoneOff className="h-3.5 w-3.5" /> Leave Voice Call
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="h-3.5 w-3.5" /> Join Voice Call
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <Separator />
+
+              {/* Video Call */}
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+                  Video Call
+                </p>
+                <Button
+                  size="sm"
+                  variant={callMode === "video" ? "destructive" : "outline"}
+                  className="w-full h-7 text-xs gap-1.5"
+                  disabled={callMode === "voice"}
+                  onClick={() =>
+                    callMode === "video" ? endCall() : startCall("video")
+                  }
+                >
+                  {callMode === "video" ? (
+                    <>
+                      <VideoOff className="h-3.5 w-3.5" /> Leave Video Call
+                    </>
+                  ) : (
+                    <>
+                      <Video className="h-3.5 w-3.5" /> Join Video Call
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <Separator />
+            </>
+          )}
+
+          {isCollaborationActive ? (
+            <div>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
+                Chat
+              </p>
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {messages.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No messages yet. Say hi!
+                  </p>
+                ) : (
+                  messages.map((msg) => {
+                    const isOwn = msg.userId === currentUserId;
+                    return (
                       <div
-                        className={`max-w-[180px] rounded-lg px-2.5 py-1.5 text-xs overflow-hidden ${
-                          isOwn
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-foreground"
-                        }`}
+                        key={msg.id}
+                        className={`flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}
                       >
-                        {msg.content}
+                        {!isOwn && (
+                          <span className="text-[10px] text-muted-foreground px-1">
+                            {msg.userName ?? "Anonymous"}
+                          </span>
+                        )}
+                        <div
+                          className={`max-w-[180px] rounded-lg px-2.5 py-1.5 text-xs overflow-hidden ${
+                            isOwn
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-foreground"
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                        <span className="text-[9px] text-muted-foreground px-1">
+                          {formatTime(msg.createdAt)}
+                        </span>
                       </div>
-                      <span className="text-[9px] text-muted-foreground px-1">
-                        {formatTime(msg.createdAt)}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Start collaboration session to enable chat.
+            </p>
+          )}
         </div>
       </ScrollArea>
 
-      {/* Chat Input */}
-      <div className="border-t p-2 flex gap-1.5">
-        <Input
-          className="h-7 text-xs"
-          placeholder="Message..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={!isConnected || sending}
+      {isCollaborationActive && (
+        <div className="border-t p-2 flex gap-1.5">
+          <Input
+            className="h-7 text-xs"
+            placeholder="Message..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={!isConnected || sending}
+          />
+          <Button
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={handleSend}
+            disabled={!input.trim() || !isConnected || sending}
+          >
+            <Send className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
+      {isCollaborationActive && callMode === "voice" && (
+        <iframe
+          src={getCallUrl("voice")}
+          title="Voice Call"
+          className="hidden"
+          allow="camera; microphone; fullscreen; display-capture"
         />
-        <Button
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={handleSend}
-          disabled={!input.trim() || !isConnected || sending}
+      )}
+
+      {/* Floating mini video box */}
+      {isCollaborationActive && callMode === "video" && (
+        <div
+          className="fixed z-50 w-72 rounded-lg border bg-background shadow-xl"
+          style={{ left: videoBoxPosition.x, top: videoBoxPosition.y }}
         >
-          <Send className="h-3 w-3" />
-        </Button>
-      </div>
+          <div
+            className="flex items-center justify-between border-b px-3 py-2 cursor-move select-none"
+            onMouseDown={startVideoBoxDragging}
+          >
+            <p className="text-xs font-semibold flex items-center gap-1.5">
+              <GripHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+              Video Call Active
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6"
+                onClick={() => setIsVideoBoxMinimized((prev) => !prev)}
+                title={isVideoBoxMinimized ? "Restore" : "Minimize"}
+              >
+                {isVideoBoxMinimized ? (
+                  <Maximize2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Minimize2 className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {!isVideoBoxMinimized && (
+            <div className="p-0">
+              <div className="h-44 w-full bg-black rounded-b-lg overflow-hidden">
+                <iframe
+                  src={getCallUrl("video")}
+                  title="Video Call"
+                  className="h-full w-full border-0"
+                  allow="camera; microphone; fullscreen; display-capture"
+                />
+              </div>
+              <div className="p-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 text-xs w-full"
+                  onClick={endCall}
+                >
+                  End Video Call
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
