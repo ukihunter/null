@@ -197,6 +197,29 @@ export function useCollaboration(sessionId: string) {
     [sessionId],
   );
 
+  const bindClientEvent = useCallback(
+    <T,>(eventName: string, handler: (data: T) => void) => {
+      const channel = channelRef.current;
+      if (!channel) return () => {};
+      channel.bind(eventName, handler);
+      return () => channel.unbind(eventName, handler);
+    },
+    [],
+  );
+
+  const triggerClientEvent = useCallback(
+    (eventName: string, data: unknown) => {
+      const channel = channelRef.current;
+      if (!channel) return false;
+      try {
+        return channel.trigger(eventName, data);
+      } catch {
+        return false;
+      }
+    },
+    [],
+  );
+
   const logActivity = useCallback(
     async (type: string, meta?: Record<string, string>) => {
       if (!sessionId) return;
@@ -304,6 +327,8 @@ export function useCollaboration(sessionId: string) {
     broadcastCodeChange,
     broadcastCursor,
     broadcastFileSaved,
+    bindClientEvent,
+    triggerClientEvent,
     logActivity,
     startCollaboration,
     stopCollaboration,

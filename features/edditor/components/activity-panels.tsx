@@ -29,8 +29,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { getPusherClient } from "@/lib/pusher-client";
-import type { PresenceChannel } from "pusher-js";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -796,6 +794,11 @@ export interface CollaborationPanelProps {
   isCollaborationActive: boolean;
   onToggleCollaboration: () => void;
   onLogActivity?: (type: string, meta?: Record<string, string>) => Promise<void>;
+  bindClientEvent?: <T,>(
+    eventName: string,
+    handler: (data: T) => void,
+  ) => () => void;
+  triggerClientEvent?: (eventName: string, data: unknown) => boolean;
 }
 
 export function CollaborationPanel({
@@ -808,6 +811,8 @@ export function CollaborationPanel({
   isCollaborationActive,
   onToggleCollaboration,
   onLogActivity,
+  bindClientEvent,
+  triggerClientEvent,
 }: CollaborationPanelProps) {
   const [input, setInput] = React.useState("");
   const [copied, setCopied] = React.useState(false);
@@ -826,7 +831,6 @@ export function CollaborationPanel({
   const localVideoRef = React.useRef<HTMLVideoElement>(null);
   const remoteVideoRef = React.useRef<HTMLVideoElement>(null);
   const remoteAudioRef = React.useRef<HTMLAudioElement>(null);
-  const channelRef = React.useRef<PresenceChannel | null>(null);
   const localStreamRef = React.useRef<MediaStream | null>(null);
   const peerConnectionsRef = React.useRef<Map<string, RTCPeerConnection>>(
     new Map(),
@@ -923,8 +927,8 @@ export function CollaborationPanel({
       };
 
       pc.onicecandidate = (event) => {
-        if (!event.candidate || !channelRef.current) return;
-        channelRef.current.trigger("client-webrtc-ice", {
+        if (!event.candidate) return;
+        triggerClientEvent?.("client-webrtc-ice", {
           to: targetUserId,
           from: currentUserId,
           candidate: event.candidate,
@@ -969,9 +973,7 @@ export function CollaborationPanel({
 
   const endCall = React.useCallback(() => {
     cleanupCall();
-    if (channelRef.current) {
-      channelRef.current.trigger("client-webrtc-ended", { from: currentUserId });
-    }
+    triggerClientEvent?.("client-webrtc-ended", { from: currentUserId });
     if (callMode === "voice") {
       void onLogActivity?.("voice_call_left");
     }
@@ -988,93 +990,87 @@ export function CollaborationPanel({
   }, [isCollaborationActive, endCall]);
 
   React.useEffect(() => {
-    if (!isCollaborationActive || !sessionId || !currentUserId) return;
-    const pusher = getPusherClient();
-    const channel = pusher.subscribe(
-      `presence-session-${sessionId}`,
-    ) as PresenceChannel;
-    channelRef.current = channel;
+    if (!isCollaborationActive || !currentUserId || !bindClientEvent) return;
 
-    channel.bind(
-      "client-webrtc-offer",
-      async (data: {
-        to: string;
-        from: string;
-        sdp: RTCSessionDescriptionInit;
-        mode: "voice" | "video";
-      }) => {
-        if (data.to !== currentUserId || data.from === currentUserId) return;
-        if (!localStreamRef.current) {
-          const stream = await getMedia(data.mode);
-          localStreamRef.current = stream;
-          if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-          setCallMode(data.mode);
-        }
+    const offOffer = bindClientEvent<{
+      to: string;
+      from: string;
+      sdp: RTCSessionDescriptionInit;
+      mode: "voice" | "video";
+    }>("client-webrtc-offer", async (data) => {
+      if (data.to !== currentUserId || data.from === currentUserId) return;
+      if (!localStreamRef.current) {
+        const stream = await getMedia(data.mode);
+        localStreamRef.current = stream;
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        setCallMode(data.mode);
+      }
 
-        const pc = createPeerConnection(
-          data.from,
-          data.mode,
-          localStreamRef.current!,
-        );
-        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        channel.trigger("client-webrtc-answer", {
-          to: data.from,
-          from: currentUserId,
-          sdp: answer,
-        });
-      },
-    );
-
-    channel.bind(
-      "client-webrtc-answer",
-      async (data: { to: string; from: string; sdp: RTCSessionDescriptionInit }) => {
-        if (data.to !== currentUserId) return;
-        const pc = peerConnectionsRef.current.get(data.from);
-        if (!pc) return;
-        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      },
-    );
-
-    channel.bind(
-      "client-webrtc-ice",
-      async (data: { to: string; from: string; candidate: RTCIceCandidateInit }) => {
-        if (data.to !== currentUserId) return;
-        const pc = peerConnectionsRef.current.get(data.from);
-        if (!pc) return;
-        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-      },
-    );
-
-    channel.bind("client-webrtc-ended", () => {
-      cleanupCall();
-      setCallMode("none");
+      const pc = createPeerConnection(
+        data.from,
+        data.mode,
+        localStreamRef.current!,
+      );
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      triggerClientEvent?.("client-webrtc-answer", {
+        to: data.from,
+        from: currentUserId,
+        sdp: answer,
+      });
     });
 
+    const offAnswer = bindClientEvent<{
+      to: string;
+      from: string;
+      sdp: RTCSessionDescriptionInit;
+    }>("client-webrtc-answer", async (data) => {
+      if (data.to !== currentUserId) return;
+      const pc = peerConnectionsRef.current.get(data.from);
+      if (!pc) return;
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    });
+
+    const offIce = bindClientEvent<{
+      to: string;
+      from: string;
+      candidate: RTCIceCandidateInit;
+    }>("client-webrtc-ice", async (data) => {
+      if (data.to !== currentUserId) return;
+      const pc = peerConnectionsRef.current.get(data.from);
+      if (!pc) return;
+      await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    });
+
+    const offEnded = bindClientEvent<{ from: string }>(
+      "client-webrtc-ended",
+      () => {
+        cleanupCall();
+        setCallMode("none");
+      },
+    );
+
     return () => {
-      channel.unbind("client-webrtc-offer");
-      channel.unbind("client-webrtc-answer");
-      channel.unbind("client-webrtc-ice");
-      channel.unbind("client-webrtc-ended");
-      pusher.unsubscribe(`presence-session-${sessionId}`);
-      channelRef.current = null;
+      offOffer();
+      offAnswer();
+      offIce();
+      offEnded();
     };
   }, [
+    bindClientEvent,
     cleanupCall,
     createPeerConnection,
     currentUserId,
     getMedia,
     isCollaborationActive,
-    sessionId,
+    triggerClientEvent,
   ]);
 
   React.useEffect(() => {
     if (!isCollaborationActive || callMode === "none" || !localStreamRef.current) {
       return;
     }
-    const channel = channelRef.current;
-    if (!channel) return;
 
     activeUsers
       .filter((u) => u.id !== currentUserId)
@@ -1083,7 +1079,7 @@ export function CollaborationPanel({
         const pc = createPeerConnection(user.id, callMode, localStreamRef.current!);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        channel.trigger("client-webrtc-offer", {
+        triggerClientEvent?.("client-webrtc-offer", {
           to: user.id,
           from: currentUserId,
           sdp: offer,
@@ -1096,6 +1092,7 @@ export function CollaborationPanel({
     createPeerConnection,
     currentUserId,
     isCollaborationActive,
+    triggerClientEvent,
   ]);
 
   React.useEffect(() => {
