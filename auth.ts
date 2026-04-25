@@ -1,10 +1,17 @@
 import NextAuth from "next-auth";
-
 import authConfig from "./auth.config";
 import { db } from "./lib/db";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
+  ...authConfig,
+
+  session: { strategy: "jwt" },
+  secret: process.env.AUTH_SECRET,
+
   callbacks: {
+    // merge authConfig callbacks safely (if they exist)
+    ...(authConfig.callbacks ?? {}),
+
     /**
      * Handle user creation and account linking after a successful sign-in
      */
@@ -12,14 +19,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       if (!user || !account) return false;
 
       try {
-        // Check if the user already exists
         const existingUser = await db.user.findUnique({
           where: { email: user.email! },
         });
 
-        // If user does not exist, create a new one
         if (!existingUser) {
-          // Create user first
           const newUser = await db.user.create({
             data: {
               email: user.email!,
@@ -28,9 +32,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             },
           });
 
-          if (!newUser) return false; // Return false if user creation fails
+          if (!newUser) return false;
 
-          // Then create the account separately to avoid transaction requirement
           await db.account.create({
             data: {
               userId: newUser.id,
@@ -47,7 +50,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             },
           });
         } else {
-          // Link the account if user exists
           const existingAccount = await db.account.findUnique({
             where: {
               provider_providerAccountId: {
@@ -57,7 +59,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             },
           });
 
-          // If the account does not exist, create it
           if (!existingAccount) {
             await db.account.create({
               data: {
@@ -83,7 +84,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         return true;
       } catch (error) {
         console.error("[AUTH] signIn callback error:", error);
-        // Return true so the user can still sign in even if DB sync fails
         return true;
       }
     },
@@ -91,14 +91,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     async jwt({ token }) {
       if (!token.sub) return token;
 
-      // If we already stored the verified DB user ID in the token, reuse it.
-      // This avoids a DB round-trip on every request after the first successful lookup.
       if (token.dbUserId) {
         token.sub = token.dbUserId as string;
         return token;
       }
 
-      // First time (or existing bad token without dbUserId): look up the real DB user.
       try {
         const existingUser = await db.user.findUnique({
           where: { email: token.email as string },
@@ -106,7 +103,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
         if (!existingUser) return token;
 
-        // Store DB id in both sub and a dedicated cached field
         token.sub = existingUser.id;
         token.dbUserId = existingUser.id;
         token.name = existingUser.name;
@@ -121,20 +117,12 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     },
 
     async session({ session, token }) {
-      // Attach the user ID from the token to the session
-      if (token.sub && session.user) {
-        session.user.id = token.sub;
-      }
-
-      if (token.sub && session.user) {
-        session.user.role = token.role;
+      if (session.user) {
+        if (token.sub) session.user.id = token.sub;
+        if (token.role) session.user.role = token.role;
       }
 
       return session;
     },
   },
-
-  secret: process.env.AUTH_SECRET,
-  session: { strategy: "jwt" },
-  ...authConfig,
 });
