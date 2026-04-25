@@ -409,17 +409,85 @@ export function SearchPanel({ data, onFileSelect }: SearchPanelProps) {
   );
 }
 
-export function SourceControlPanel() {
+// export function SourceControlPanel() {
+//   return (
+//     <div className="flex h-full w-64 flex-col border-r bg-background">
+//       <div className="border-b p-4">
+//         <h2 className="text-sm font-semibold">SOURCE CONTROL</h2>
+//       </div>
+//       <ScrollArea className="flex-1 p-4">
+//         <p className="text-sm text-muted-foreground">
+//           No source control providers registered.
+//         </p>
+//       </ScrollArea>
+//     </div>
+//   );
+// }
+
+import { useState } from "react";
+
+interface Props {
+  templateData: any; // full file tree
+}
+
+export function SourceControlPanel({ templateData }: Props) {
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleCommit = async () => {
+    if (!message.trim()) return;
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/github/commit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message,
+          files: templateData, // ✅ FULL PROJECT SENT
+        }),
+      });
+
+      const data = await res.json();
+      console.log("Commit result:", data);
+
+      setMessage("");
+    } catch (err) {
+      console.error("Commit failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
       <div className="border-b p-4">
         <h2 className="text-sm font-semibold">SOURCE CONTROL</h2>
       </div>
-      <ScrollArea className="flex-1 p-4">
-        <p className="text-sm text-muted-foreground">
-          No source control providers registered.
-        </p>
-      </ScrollArea>
+
+      <div className="p-3 border-b space-y-2">
+        <input
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Commit message..."
+          className="w-full text-sm border rounded px-2 py-1"
+        />
+
+        <button
+          onClick={handleCommit}
+          disabled={loading}
+          className="w-full bg-green-600 text-white text-sm py-1 rounded"
+        >
+          {loading ? "Committing..." : "Commit All Files"}
+        </button>
+      </div>
+
+      <div className="flex-1 p-4 text-sm text-muted-foreground">
+        Commit history coming soon...
+      </div>
     </div>
   );
 }

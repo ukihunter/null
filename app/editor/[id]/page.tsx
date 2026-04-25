@@ -541,7 +541,7 @@ const Page = () => {
               />
             )}
             {sidebarOpen && activeView === "source-control" && (
-              <SourceControlPanel />
+              <SourceControlPanel templateData={templateData} />
             )}
             {sidebarOpen && activeView === "debug" && <DebugPanel />}
             {sidebarOpen && activeView === "extensions" && <ExtensionsPanel />}
