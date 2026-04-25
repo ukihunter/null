@@ -1101,8 +1101,19 @@ export function CollaborationPanel({
     }
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = remoteStream;
+      // Autoplay is sometimes blocked; attempt play after user gesture (Join click)
+      // and also when remote stream becomes available.
+      remoteAudioRef.current.muted = false;
+      void remoteAudioRef.current.play().catch(() => {});
     }
   }, [remoteStream]);
+
+  React.useEffect(() => {
+    // Ensure local stream attaches even if the <video> mounts later (floating box).
+    if (localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+    }
+  }, [callMode]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;

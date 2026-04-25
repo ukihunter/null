@@ -902,16 +902,28 @@ const Page = () => {
                           direction="horizontal"
                           className="h-full"
                           key="with-preview"
+                          autoSaveId={`editor-split-${id ?? "unknown"}`}
                         >
-                          <ResizablePanel defaultSize={50}>
-                          {activeFile && (
-                            <FileEditingIndicator
-                              editor={fileEditing.getFileEditor(
-                                activeFileId || "",
+                          <ResizablePanel defaultSize={50} minSize={25}>
+                            <div className="h-full relative">
+                              {activeFile && (
+                                <div className="absolute top-0 left-0 right-0 z-10">
+                                  <FileEditingIndicator
+                                    editor={fileEditing.getFileEditor(
+                                      activeFileId || "",
+                                    )}
+                                  />
+                                </div>
                               )}
-                            />
-                          )}
-                          <CodeEditor
+                              <div
+                                className={`h-full ${
+                                  activeFile &&
+                                  fileEditing.getFileEditor(activeFileId || "")
+                                    ? "pt-14"
+                                    : ""
+                                }`}
+                              >
+                                <CodeEditor
                             activeFile={activeFile}
                             content={activeFile?.content || ""}
                             onContentChange={async (value: string) => {
@@ -1014,10 +1026,12 @@ const Page = () => {
                             readOnly={fileEditing.isFileBeingEditedByOther(
                               activeFileId || "",
                             )}
-                          />
+                                />
+                              </div>
+                            </div>
                           </ResizablePanel>
                           <ResizableHandle />
-                          <ResizablePanel defaultSize={50}>
+                          <ResizablePanel defaultSize={50} minSize={25}>
                             <WebContainerPreview
                               templateData={templateData!}
                               instance={instance}
@@ -1032,14 +1046,25 @@ const Page = () => {
                         </ResizablePanelGroup>
                       ) : (
                         <div className="h-full">
-                          {activeFile && (
-                            <FileEditingIndicator
-                              editor={fileEditing.getFileEditor(
-                                activeFileId || "",
-                              )}
-                            />
-                          )}
-                          <CodeEditor
+                          <div className="h-full relative">
+                            {activeFile && (
+                              <div className="absolute top-0 left-0 right-0 z-10">
+                                <FileEditingIndicator
+                                  editor={fileEditing.getFileEditor(
+                                    activeFileId || "",
+                                  )}
+                                />
+                              </div>
+                            )}
+                            <div
+                              className={`h-full ${
+                                activeFile &&
+                                fileEditing.getFileEditor(activeFileId || "")
+                                  ? "pt-14"
+                                  : ""
+                              }`}
+                            >
+                              <CodeEditor
                             activeFile={activeFile}
                             content={activeFile?.content || ""}
                             onContentChange={async (value: string) => {
@@ -1132,7 +1157,9 @@ const Page = () => {
                             readOnly={fileEditing.isFileBeingEditedByOther(
                               activeFileId || "",
                             )}
-                          />
+                              />
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
