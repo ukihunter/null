@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 declare global {
   interface Window {
@@ -9,18 +9,17 @@ declare global {
   }
 }
 
-export default function CallPage({
-  params,
-}: {
-  params: { sessionId: string };
-}) {
+export default function CallPage() {
+  const routeParams = useParams<{ sessionId: string }>();
+  const sessionId = routeParams?.sessionId ?? "";
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef<any>(null);
   const mode = searchParams.get("mode") === "voice" ? "voice" : "video";
 
   useEffect(() => {
-    const roomName = `null-ide-${params.sessionId}`;
+    if (!sessionId) return;
+    const roomName = `null-ide-${sessionId}`;
     let mounted = true;
 
     const mountMeeting = () => {
@@ -74,7 +73,7 @@ export default function CallPage({
         apiRef.current = null;
       }
     };
-  }, [mode, params.sessionId]);
+  }, [mode, sessionId]);
 
   return (
     <div className="h-full w-full bg-black">
