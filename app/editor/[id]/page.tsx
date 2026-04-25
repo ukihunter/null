@@ -67,7 +67,7 @@ import { findFilePath } from "@/features/edditor/lib";
 import {
   SearchPanel,
   SourceControlPanel,
-  DebugPanel,
+  //DebugPanel,
   ExtensionsPanel,
   CollaborationPanel,
   AccountPanel,
@@ -264,7 +264,8 @@ const Page = () => {
       }
 
       const dotIndex = filePart.lastIndexOf(".");
-      const targetName = dotIndex === -1 ? filePart : filePart.slice(0, dotIndex);
+      const targetName =
+        dotIndex === -1 ? filePart : filePart.slice(0, dotIndex);
       const targetExt = dotIndex === -1 ? "" : filePart.slice(dotIndex + 1);
 
       const fileIndex = folder.items.findIndex(
@@ -608,16 +609,16 @@ const Page = () => {
                 label="Source Control"
                 view="source-control"
               />
-              <ActivityBarItem
+              {/* <ActivityBarItem
                 icon={<Play className="h-6 w-6" />}
                 label="Run and Debug"
                 view="debug"
-              />
-              <ActivityBarItem
+              /> */}
+              {/* <ActivityBarItem
                 icon={<Package className="h-6 w-6" />}
                 label="Extensions"
                 view="extensions"
-              />
+              /> */}
               <ActivityBarItem
                 icon={<Users className="h-6 w-6" />}
                 label="Collaboration"
@@ -661,7 +662,7 @@ const Page = () => {
                 unsavedFiles={unsavedFilesForCommit}
               />
             )}
-            {sidebarOpen && activeView === "debug" && <DebugPanel />}
+            {/*  {sidebarOpen && activeView === "debug" && <DebugPanel />}*/}
             {sidebarOpen && activeView === "extensions" && <ExtensionsPanel />}
             {sidebarOpen && activeView === "collaboration" && (
               <CollaborationPanel
