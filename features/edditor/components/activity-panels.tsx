@@ -821,6 +821,7 @@ export function CollaborationPanel({
   const [videoBoxPositionInitialized, setVideoBoxPositionInitialized] =
     React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const voiceWindowRef = React.useRef<Window | null>(null);
   const dragStateRef = React.useRef({
     dragging: false,
     offsetX: 0,
@@ -883,13 +884,27 @@ export function CollaborationPanel({
   const startCall = React.useCallback(
     (mode: "voice" | "video") => {
       if (!isCollaborationActive) return;
+      if (mode === "voice") {
+        const popup = window.open(
+          getCallUrl("voice"),
+          `null-voice-${sessionId}`,
+          "width=480,height=720,resizable=yes,scrollbars=yes",
+        );
+        if (popup) {
+          voiceWindowRef.current = popup;
+        }
+      }
       setCallMode(mode);
       void onLogActivity?.(`${mode}_call_joined`);
     },
-    [isCollaborationActive, onLogActivity],
+    [getCallUrl, isCollaborationActive, onLogActivity, sessionId],
   );
 
   const endCall = React.useCallback(() => {
+    if (voiceWindowRef.current && !voiceWindowRef.current.closed) {
+      voiceWindowRef.current.close();
+    }
+    voiceWindowRef.current = null;
     if (callMode === "voice") {
       void onLogActivity?.("voice_call_left");
     }
@@ -946,6 +961,9 @@ export function CollaborationPanel({
     return () => {
       window.removeEventListener("mousemove", handleVideoBoxMouseMove);
       window.removeEventListener("mouseup", stopVideoBoxDragging);
+      if (voiceWindowRef.current && !voiceWindowRef.current.closed) {
+        voiceWindowRef.current.close();
+      }
     };
   }, [handleVideoBoxMouseMove, stopVideoBoxDragging]);
 
@@ -1184,15 +1202,6 @@ export function CollaborationPanel({
         </div>
       )}
 
-      {isCollaborationActive && callMode === "voice" && (
-        <iframe
-          src={getCallUrl("voice")}
-          title="Voice Call"
-          className="hidden"
-          allow="camera; microphone; fullscreen; display-capture"
-        />
-      )}
-
       {/* Floating mini video box */}
       {isCollaborationActive && callMode === "video" && (
         <div
@@ -1228,6 +1237,7 @@ export function CollaborationPanel({
             <div className="p-0">
               <div className="h-44 w-full bg-black rounded-b-lg overflow-hidden">
                 <iframe
+                  key={`video-call-${sessionId}`}
                   src={getCallUrl("video")}
                   title="Video Call"
                   className="h-full w-full border-0"

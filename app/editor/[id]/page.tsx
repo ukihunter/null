@@ -560,7 +560,7 @@ const Page = () => {
         fileEditing.stopEditingFile(activeFileId);
       }
     };
-  }, [activeFileId, fileEditing]);
+  }, [activeFileId, fileEditing.stopEditingFile]);
 
   // Error state
   if (error || containerError) {
