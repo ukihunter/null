@@ -513,23 +513,22 @@ const Page = () => {
       };
 
       updateFileContent(fileId, content);
-      setOpenFiles((prev) =>
-        prev.map((file) =>
-          file.id === fileId
-            ? {
-                ...file,
-                content,
-                originalContent: content,
-                hasUnsavedChanges: false,
-              }
-            : file,
-        ),
+      const nextOpenFiles = openFiles.map((file) =>
+        file.id === fileId
+          ? {
+              ...file,
+              content,
+              originalContent: content,
+              hasUnsavedChanges: false,
+            }
+          : file,
       );
+      setOpenFiles(nextOpenFiles);
     };
 
     window.addEventListener("collab-file-saved", savedHandler);
     return () => window.removeEventListener("collab-file-saved", savedHandler);
-  }, [setOpenFiles, updateFileContent]);
+  }, [openFiles, setOpenFiles, updateFileContent]);
 
   const lastBroadcastContentRef = useRef<Map<string, string>>(new Map());
   const isInitializingRef = useRef(false);
