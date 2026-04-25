@@ -8,7 +8,6 @@ import { useEditor } from "@/features/edditor/hook/useEditor";
 //import TemplateFileTree from "@/features/edditor/components/template-file-tree";
 import { useFileExplorer } from "@/features/edditor/hook/useFileExpolrer";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import "@/features/edditor/styles/remote-cursors.css";
 
 import {
   Tooltip,
@@ -207,9 +206,26 @@ const Page = () => {
     }
   }, [templateData, openFiles.length, setTemplateData]);
 
-  const handleFileSelect = (file: TemplateFile) => {
-    console.log("Handlepath", file);
+  // const handleFileSelect = (file: TemplateFile) => {
+  //   console.log("Handlepath", file);
+  //   openFile(file);
+  // };
+
+  const handleFileSelect = (file: TemplateFile & { _line?: number }) => {
     openFile(file);
+
+    const line = file._line;
+
+    if (line) {
+      // send event to editor (NOT monacoRef)
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("editor-jump-to-line", {
+            detail: { line },
+          }),
+        );
+      }, 50);
+    }
   };
 
   const handleSave = useCallback(
@@ -518,7 +534,12 @@ const Page = () => {
                 onRenameFolder={wrappedHandleRenameFolder}
               />
             )}
-            {sidebarOpen && activeView === "search" && <SearchPanel />}
+            {sidebarOpen && activeView === "search" && (
+              <SearchPanel
+                data={templateData!}
+                onFileSelect={handleFileSelect}
+              />
+            )}
             {sidebarOpen && activeView === "source-control" && (
               <SourceControlPanel />
             )}

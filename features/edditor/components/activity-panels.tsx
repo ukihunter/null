@@ -255,15 +255,155 @@ export function ExplorerPanel({
   );
 }
 
-export function SearchPanel() {
+// export function SearchPanel() {
+//   return (
+//     <div className="flex h-full w-64 flex-col border-r bg-background">
+//       <div className="border-b p-4">
+//         <h2 className="text-sm font-semibold mb-3">SEARCH</h2>
+//         <Input placeholder="Search files..." className="h-8" />
+//       </div>
+//       <ScrollArea className="flex-1 p-4">
+//         <p className="text-sm text-muted-foreground">No results found here </p>
+//       </ScrollArea>
+//     </div>
+//   );
+// }
+
+interface SearchPanelProps {
+  data: TemplateFolder;
+  onFileSelect?: (file: any, line?: number) => void;
+}
+
+export function SearchPanel({ data, onFileSelect }: SearchPanelProps) {
+  const [query, setQuery] = React.useState("");
+
+  // flatten folder tree
+  const getAllFiles = (folder: TemplateFolder): TemplateFile[] => {
+    let files: TemplateFile[] = [];
+
+    folder.items.forEach((item) => {
+      if ("folderName" in item) {
+        files = files.concat(getAllFiles(item));
+      } else {
+        files.push(item);
+      }
+    });
+
+    return files;
+  };
+
+  const allFiles = React.useMemo(() => getAllFiles(data), [data]);
+
+  const filteredFiles = React.useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return [];
+
+    return allFiles.filter((file) => {
+      const fileName = `${file.filename}.${file.fileExtension}`.toLowerCase();
+      const content = (file.content || "").toLowerCase();
+
+      return fileName.includes(q) || content.includes(q);
+    });
+  }, [query, allFiles]);
+
+  // get matched lines
+  const getMatchedLines = (content: string, query: string) => {
+    if (!query.trim()) return [];
+
+    const q = query.toLowerCase();
+    return content
+      .split("\n")
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => line.toLowerCase().includes(q))
+      .slice(0, 5);
+  };
+
+  // highlight text
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return text;
+
+    const parts = text.split(new RegExp(`(${query})`, "gi"));
+
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase() ? (
+        <span key={i} className="bg-yellow-300 text-black px-0.5 rounded">
+          {part}
+        </span>
+      ) : (
+        part
+      ),
+    );
+  };
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
+      {/* SEARCH */}
       <div className="border-b p-4">
         <h2 className="text-sm font-semibold mb-3">SEARCH</h2>
-        <Input placeholder="Search files..." className="h-8" />
+
+        <Input
+          placeholder="Search files or content..."
+          className="h-8"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </div>
-      <ScrollArea className="flex-1 p-4">
-        <p className="text-sm text-muted-foreground">No results found here </p>
+
+      {/* RESULTS */}
+      <ScrollArea className="flex-1 p-2">
+        {query.trim() === "" ? (
+          <p className="text-sm text-muted-foreground p-2">
+            Type to search files and content
+          </p>
+        ) : filteredFiles.length === 0 ? (
+          <p className="text-sm text-muted-foreground p-2">No results found</p>
+        ) : (
+          <div className="space-y-2">
+            {filteredFiles.map((file, i) => {
+              const fileName =
+                `${file.filename}.${file.fileExtension}`.toLowerCase();
+
+              const matchedLines = getMatchedLines(file.content || "", query);
+
+              const firstMatchLine = matchedLines[0]?.index + 1;
+
+              return (
+                <div
+                  key={i}
+                  onClick={() => {
+                    onFileSelect?.(file, firstMatchLine); // 🔥 SEND LINE NUMBER
+                  }}
+                  className="flex flex-col gap-1 p-2 rounded hover:bg-muted cursor-pointer"
+                >
+                  {/* FILE NAME */}
+                  <div className="flex items-center gap-2">
+                    <File className="h-4 w-4" />
+                    <span className="text-sm">
+                      {file.filename}.{file.fileExtension}
+                    </span>
+                  </div>
+
+                  {/* MATCHED LINES */}
+                  {matchedLines.length > 0 && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {matchedLines.map((l) => (
+                        <div
+                          key={l.index}
+                          className="text-[11px] font-mono text-muted-foreground"
+                        >
+                          <span className="text-gray-500 mr-2">
+                            {l.index + 1}
+                          </span>
+                          {highlightText(l.line, query)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </ScrollArea>
     </div>
   );
