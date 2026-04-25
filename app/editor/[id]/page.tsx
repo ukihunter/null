@@ -524,11 +524,37 @@ const Page = () => {
           : file,
       );
       setOpenFiles(nextOpenFiles);
+
+      const targetFile = openFiles.find((file) => file.id === fileId);
+      if (!targetFile || !templateData || !instance || !writeFileSync) return;
+
+      const filePath = findFilePath(targetFile, templateData);
+      if (!filePath) return;
+
+      void (async () => {
+        try {
+          await writeFileSync(filePath, content);
+          await instance.fs.writeFile(filePath, content);
+
+          if (filePath.match(/\.(html|css)$/)) {
+            setPreviewKey((prev) => prev + 1);
+          }
+        } catch (error) {
+          console.error("Failed syncing collaborator save to preview:", error);
+        }
+      })();
     };
 
     window.addEventListener("collab-file-saved", savedHandler);
     return () => window.removeEventListener("collab-file-saved", savedHandler);
-  }, [openFiles, setOpenFiles, updateFileContent]);
+  }, [
+    instance,
+    openFiles,
+    setOpenFiles,
+    templateData,
+    updateFileContent,
+    writeFileSync,
+  ]);
 
   const lastBroadcastContentRef = useRef<Map<string, string>>(new Map());
   const isInitializingRef = useRef(false);

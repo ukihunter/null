@@ -29,6 +29,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { getPusherClient } from "@/lib/pusher-client";
+import type { PresenceChannel } from "pusher-js";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -821,7 +823,17 @@ export function CollaborationPanel({
   const [videoBoxPositionInitialized, setVideoBoxPositionInitialized] =
     React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const voiceWindowRef = React.useRef<Window | null>(null);
+  const localVideoRef = React.useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = React.useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = React.useRef<HTMLAudioElement>(null);
+  const channelRef = React.useRef<PresenceChannel | null>(null);
+  const localStreamRef = React.useRef<MediaStream | null>(null);
+  const peerConnectionsRef = React.useRef<Map<string, RTCPeerConnection>>(
+    new Map(),
+  );
+  const [remoteStream, setRemoteStream] = React.useState<MediaStream | null>(
+    null,
+  );
   const dragStateRef = React.useRef({
     dragging: false,
     offsetX: 0,
@@ -874,37 +886,92 @@ export function CollaborationPanel({
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const getCallUrl = React.useCallback(
-    (mode: "voice" | "video") => {
-      return `/call/${sessionId}?mode=${mode}`;
+  const getMedia = React.useCallback(async (mode: "voice" | "video") => {
+    const constraints =
+      mode === "video"
+        ? { audio: true, video: true }
+        : { audio: true, video: false };
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }, []);
+
+  const cleanupCall = React.useCallback(() => {
+    peerConnectionsRef.current.forEach((pc) => pc.close());
+    peerConnectionsRef.current.clear();
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    setRemoteStream(null);
+  }, []);
+
+  const createPeerConnection = React.useCallback(
+    (targetUserId: string, mode: "voice" | "video", stream: MediaStream) => {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+
+      stream.getTracks().forEach((track) => {
+        if (mode === "voice" && track.kind === "video") return;
+        pc.addTrack(track, stream);
+      });
+
+      pc.ontrack = (event) => {
+        const [incomingStream] = event.streams;
+        if (incomingStream) {
+          setRemoteStream(incomingStream);
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (!event.candidate || !channelRef.current) return;
+        channelRef.current.trigger("client-webrtc-ice", {
+          to: targetUserId,
+          from: currentUserId,
+          candidate: event.candidate,
+        });
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (
+          pc.connectionState === "failed" ||
+          pc.connectionState === "disconnected" ||
+          pc.connectionState === "closed"
+        ) {
+          peerConnectionsRef.current.delete(targetUserId);
+        }
+      };
+
+      peerConnectionsRef.current.set(targetUserId, pc);
+      return pc;
     },
-    [sessionId],
+    [currentUserId],
   );
 
   const startCall = React.useCallback(
-    (mode: "voice" | "video") => {
+    async (mode: "voice" | "video") => {
       if (!isCollaborationActive) return;
-      if (mode === "voice") {
-        const popup = window.open(
-          getCallUrl("voice"),
-          `null-voice-${sessionId}`,
-          "width=480,height=720,resizable=yes,scrollbars=yes",
-        );
-        if (popup) {
-          voiceWindowRef.current = popup;
+      try {
+        cleanupCall();
+        const stream = await getMedia(mode);
+        localStreamRef.current = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
         }
+      } catch {
+        alert("Please allow microphone/camera permissions.");
+        return;
       }
       setCallMode(mode);
       void onLogActivity?.(`${mode}_call_joined`);
     },
-    [getCallUrl, isCollaborationActive, onLogActivity, sessionId],
+    [cleanupCall, getMedia, isCollaborationActive, onLogActivity],
   );
 
   const endCall = React.useCallback(() => {
-    if (voiceWindowRef.current && !voiceWindowRef.current.closed) {
-      voiceWindowRef.current.close();
+    cleanupCall();
+    if (channelRef.current) {
+      channelRef.current.trigger("client-webrtc-ended", { from: currentUserId });
     }
-    voiceWindowRef.current = null;
     if (callMode === "voice") {
       void onLogActivity?.("voice_call_left");
     }
@@ -912,13 +979,133 @@ export function CollaborationPanel({
       void onLogActivity?.("video_call_left");
     }
     setCallMode("none");
-  }, [callMode, onLogActivity]);
+  }, [callMode, cleanupCall, currentUserId, onLogActivity]);
 
   React.useEffect(() => {
     if (!isCollaborationActive) {
       endCall();
     }
   }, [isCollaborationActive, endCall]);
+
+  React.useEffect(() => {
+    if (!isCollaborationActive || !sessionId || !currentUserId) return;
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(
+      `presence-session-${sessionId}`,
+    ) as PresenceChannel;
+    channelRef.current = channel;
+
+    channel.bind(
+      "client-webrtc-offer",
+      async (data: {
+        to: string;
+        from: string;
+        sdp: RTCSessionDescriptionInit;
+        mode: "voice" | "video";
+      }) => {
+        if (data.to !== currentUserId || data.from === currentUserId) return;
+        if (!localStreamRef.current) {
+          const stream = await getMedia(data.mode);
+          localStreamRef.current = stream;
+          if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+          setCallMode(data.mode);
+        }
+
+        const pc = createPeerConnection(
+          data.from,
+          data.mode,
+          localStreamRef.current!,
+        );
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        channel.trigger("client-webrtc-answer", {
+          to: data.from,
+          from: currentUserId,
+          sdp: answer,
+        });
+      },
+    );
+
+    channel.bind(
+      "client-webrtc-answer",
+      async (data: { to: string; from: string; sdp: RTCSessionDescriptionInit }) => {
+        if (data.to !== currentUserId) return;
+        const pc = peerConnectionsRef.current.get(data.from);
+        if (!pc) return;
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      },
+    );
+
+    channel.bind(
+      "client-webrtc-ice",
+      async (data: { to: string; from: string; candidate: RTCIceCandidateInit }) => {
+        if (data.to !== currentUserId) return;
+        const pc = peerConnectionsRef.current.get(data.from);
+        if (!pc) return;
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      },
+    );
+
+    channel.bind("client-webrtc-ended", () => {
+      cleanupCall();
+      setCallMode("none");
+    });
+
+    return () => {
+      channel.unbind("client-webrtc-offer");
+      channel.unbind("client-webrtc-answer");
+      channel.unbind("client-webrtc-ice");
+      channel.unbind("client-webrtc-ended");
+      pusher.unsubscribe(`presence-session-${sessionId}`);
+      channelRef.current = null;
+    };
+  }, [
+    cleanupCall,
+    createPeerConnection,
+    currentUserId,
+    getMedia,
+    isCollaborationActive,
+    sessionId,
+  ]);
+
+  React.useEffect(() => {
+    if (!isCollaborationActive || callMode === "none" || !localStreamRef.current) {
+      return;
+    }
+    const channel = channelRef.current;
+    if (!channel) return;
+
+    activeUsers
+      .filter((u) => u.id !== currentUserId)
+      .forEach(async (user) => {
+        if (peerConnectionsRef.current.has(user.id)) return;
+        const pc = createPeerConnection(user.id, callMode, localStreamRef.current!);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        channel.trigger("client-webrtc-offer", {
+          to: user.id,
+          from: currentUserId,
+          sdp: offer,
+          mode: callMode,
+        });
+      });
+  }, [
+    activeUsers,
+    callMode,
+    createPeerConnection,
+    currentUserId,
+    isCollaborationActive,
+  ]);
+
+  React.useEffect(() => {
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -961,11 +1148,9 @@ export function CollaborationPanel({
     return () => {
       window.removeEventListener("mousemove", handleVideoBoxMouseMove);
       window.removeEventListener("mouseup", stopVideoBoxDragging);
-      if (voiceWindowRef.current && !voiceWindowRef.current.closed) {
-        voiceWindowRef.current.close();
-      }
+      cleanupCall();
     };
-  }, [handleVideoBoxMouseMove, stopVideoBoxDragging]);
+  }, [cleanupCall, handleVideoBoxMouseMove, stopVideoBoxDragging]);
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
@@ -1202,6 +1387,8 @@ export function CollaborationPanel({
         </div>
       )}
 
+      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
       {/* Floating mini video box */}
       {isCollaborationActive && callMode === "video" && (
         <div
@@ -1236,13 +1423,21 @@ export function CollaborationPanel({
           {!isVideoBoxMinimized && (
             <div className="p-0">
               <div className="h-44 w-full bg-black rounded-b-lg overflow-hidden">
-                <iframe
-                  key={`video-call-${sessionId}`}
-                  src={getCallUrl("video")}
-                  title="Video Call"
-                  className="h-full w-full border-0"
-                  allow="camera; microphone; fullscreen; display-capture"
-                />
+                <div className="grid h-full w-full grid-cols-2 gap-1 bg-black p-1">
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="h-full w-full rounded object-cover"
+                  />
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className="h-full w-full rounded object-cover"
+                  />
+                </div>
               </div>
               <div className="p-2">
                 <Button
