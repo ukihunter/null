@@ -7,6 +7,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
   session: { strategy: "jwt" },
   secret: process.env.AUTH_SECRET,
+  trustHost: true,
 
   callbacks: {
     // merge authConfig callbacks safely (if they exist)
@@ -88,7 +89,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       }
     },
 
-    async jwt({ token }) {
+    async jwt(ctx) {
+      let token = ctx.token;
+
+      // First run base callback from auth.config.ts so githubAccessToken/id are preserved.
+      if (authConfig.callbacks?.jwt) {
+        token = await authConfig.callbacks.jwt({
+          token,
+          user: ctx.user,
+          account: ctx.account,
+          profile: ctx.profile,
+          trigger: ctx.trigger,
+          isNewUser: ctx.isNewUser,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          session: (ctx as any).session,
+        });
+      }
+
       if (!token.sub) return token;
 
       if (token.dbUserId) {
@@ -116,7 +133,22 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       }
     },
 
-    async session({ session, token }) {
+    async session(ctx) {
+      let session = ctx.session;
+      const token = ctx.token;
+
+      // First run base callback from auth.config.ts so githubAccessToken is copied to session.
+      if (authConfig.callbacks?.session) {
+        session = await authConfig.callbacks.session({
+          session,
+          token,
+          user: ctx.user,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          newSession: (ctx as any).newSession,
+          trigger: ctx.trigger,
+        });
+      }
+
       if (session.user) {
         if (token.sub) session.user.id = token.sub;
         if (token.role) session.user.role = token.role;
