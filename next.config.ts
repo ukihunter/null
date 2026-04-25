@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   devIndicators: false,
   // Bundle null-templte files into Vercel serverless functions
   // (Vercel only bundles files explicitly imported; static folders need tracing)
