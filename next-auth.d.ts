@@ -8,6 +8,7 @@ export type ExtendedUser = DefaultSession["user"] & {
 declare module "next-auth" {
   interface Session {
     user: ExtendedUser;
+    githubAccessToken?: string; // 🔥 ADD THIS
   }
 }
 
@@ -17,5 +18,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     role: UserRole;
     dbUserId?: string;
+    githubAccessToken?: string; // 🔥 ADD THIS
   }
 }

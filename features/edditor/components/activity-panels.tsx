@@ -424,51 +424,269 @@ export function SearchPanel({ data, onFileSelect }: SearchPanelProps) {
 //   );
 // }
 
-import { useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSession, signIn } from "next-auth/react";
 
 interface Props {
-  templateData: any; // full file tree
+  templateData: any;
+  unsavedFiles?: Array<{
+    id?: string;
+    filename: string;
+    fileExtension: string;
+    content: string;
+    hasUnsavedChanges?: boolean;
+  }>;
 }
 
-export function SourceControlPanel({ templateData }: Props) {
+export function SourceControlPanel({ templateData, unsavedFiles = [] }: Props) {
+  const { data: session } = useSession();
+
   const [message, setMessage] = useState("");
+  const [repo, setRepo] = useState("");
+  const [newRepoName, setNewRepoName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [creatingRepo, setCreatingRepo] = useState(false);
+  const [commitStatus, setCommitStatus] = useState("");
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const handleCommit = async () => {
-    if (!message.trim()) return;
+  const githubToken = (session as any)?.githubAccessToken;
+  const isValidRepo = repo.includes("/");
 
-    setLoading(true);
+  // 🔥 SUPER SAFE DEDUPLICATION (FINAL VERSION)
+  const dedupeCommits = (list: any[]) => {
+    const seen = new Set<string>();
+    const result: any[] = [];
+
+    for (const item of list || []) {
+      if (!item) continue;
+
+      // strongest unique key possible
+      const key = item.sha || `${item.message || ""}-${item.date || ""}`;
+
+      if (seen.has(key)) continue;
+
+      seen.add(key);
+      result.push(item);
+    }
+
+    return result;
+  };
+
+  // 📦 LOAD HISTORY (ROBUST API HANDLING)
+  const loadHistory = useCallback(async () => {
+    if (!githubToken || !isValidRepo) return;
+
+    setLoadingHistory(true);
 
     try {
-      const res = await fetch("/api/github/commit", {
+      const res = await fetch("/api/github/history", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message,
-          files: templateData, // ✅ FULL PROJECT SENT
+          token: githubToken,
+          repo,
         }),
       });
 
       const data = await res.json();
-      console.log("Commit result:", data);
+
+      console.log("📦 HISTORY RAW:", data);
+
+      let commits: any[] = [];
+
+      // handle all possible backend formats
+      if (Array.isArray(data)) {
+        commits = data;
+      } else if (data?.success && Array.isArray(data.commits)) {
+        commits = data.commits;
+      }
+
+      setHistory(dedupeCommits(commits));
+    } catch (err) {
+      console.error("History load failed:", err);
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [githubToken, repo, isValidRepo]);
+
+  // 🔄 AUTO LOAD HISTORY
+  useEffect(() => {
+    if (githubToken && isValidRepo) {
+      loadHistory();
+    }
+  }, [githubToken, repo, isValidRepo, loadHistory]);
+
+  // 🚀 COMMIT FILES
+  const handleCommit = async () => {
+    if (!message.trim() || !isValidRepo) return;
+
+    setLoading(true);
+    setCommitStatus("");
+
+    try {
+      const res = await fetch("/api/github/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          files: templateData,
+          unsavedFiles,
+          token: githubToken,
+          repo,
+        }),
+      });
+
+      const data = await res.json();
+
+      console.log("✅ Commit result:", data);
+
+      if (!res.ok || !data?.success) {
+        const firstFailed = Array.isArray(data?.results)
+          ? data.results.find((r: any) => r?.ok === false)
+          : null;
+        setCommitStatus(
+          firstFailed?.error ||
+            data?.fallbackReason ||
+            data?.error ||
+            data?.message ||
+            "Commit failed. Check repo access and try again.",
+        );
+        return;
+      }
+
+      if (data?.fallback === "contents-api") {
+        setCommitStatus(
+          `Fallback commit: ${data.committedFiles} committed, ${data.skippedFiles || 0} skipped, ${data.failedFiles || 0} failed (out of ${data.totalFiles || "?"}).`,
+        );
+      } else {
+        setCommitStatus("Commit pushed successfully.");
+      }
 
       setMessage("");
+
+      await loadHistory();
     } catch (err) {
       console.error("Commit failed:", err);
+      setCommitStatus("Commit failed due to a network/server error.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCreateRepo = async () => {
+    if (!githubToken || !newRepoName.trim()) return;
+
+    setCreatingRepo(true);
+    setCommitStatus("");
+
+    try {
+      const res = await fetch("/api/github/create-repo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: githubToken,
+          name: newRepoName.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        setCommitStatus(
+          data?.error?.message ||
+            data?.error ||
+            data?.message ||
+            "Failed to create repo.",
+        );
+        return;
+      }
+
+      if (data?.repo) {
+        setRepo(data.repo);
+      }
+      setCommitStatus(
+        `Repository created: ${data?.repo || newRepoName.trim()}`,
+      );
+      setNewRepoName("");
+      await loadHistory();
+    } catch (err) {
+      console.error("Create repo failed:", err);
+      setCommitStatus("Failed to create repo due to network/server error.");
+    } finally {
+      setCreatingRepo(false);
+    }
+  };
+
+  const handleCreateRepoAndCommit = async () => {
+    if (!repo.trim()) {
+      if (!newRepoName.trim()) {
+        setCommitStatus("Enter a new repository name first.");
+        return;
+      }
+      await handleCreateRepo();
+      return;
+    }
+
+    await handleCommit();
+  };
+
+  // 🔐 LOGIN STATE
+  if (!githubToken) {
+    return (
+      <div className="flex h-full w-64 flex-col border-r bg-background p-4">
+        <h2 className="text-sm font-semibold mb-4">SOURCE CONTROL</h2>
+
+        <p className="text-sm text-muted-foreground mb-3">
+          Connect GitHub to enable commits
+        </p>
+
+        <button
+          onClick={() => signIn("github")}
+          className="w-full bg-black text-white text-sm py-2 rounded"
+        >
+          Login with GitHub
+        </button>
+      </div>
+    );
+  }
+
+  // 🔥 FINAL CLEAN HISTORY (MEMOIZED = NO UI GLITCHES)
+  const cleanHistory = useMemo(() => {
+    return dedupeCommits(history);
+  }, [history]);
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
+      {/* HEADER */}
       <div className="border-b p-4">
         <h2 className="text-sm font-semibold">SOURCE CONTROL</h2>
       </div>
 
+      {/* INPUTS */}
       <div className="p-3 border-b space-y-2">
+        <input
+          value={newRepoName}
+          onChange={(e) => setNewRepoName(e.target.value)}
+          placeholder="new repository name"
+          className="w-full text-sm border rounded px-2 py-1"
+        />
+        <button
+          onClick={handleCreateRepo}
+          disabled={creatingRepo || !newRepoName.trim()}
+          className="w-full bg-blue-600 text-white text-sm py-1 rounded disabled:opacity-50"
+        >
+          {creatingRepo ? "Creating Repo..." : "Create Repo"}
+        </button>
+
+        <input
+          value={repo}
+          onChange={(e) => setRepo(e.target.value)}
+          placeholder="username/repository"
+          className="w-full text-sm border rounded px-2 py-1"
+        />
+
         <input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -479,33 +697,71 @@ export function SourceControlPanel({ templateData }: Props) {
         <button
           onClick={handleCommit}
           disabled={loading}
-          className="w-full bg-green-600 text-white text-sm py-1 rounded"
+          className="w-full bg-green-600 text-white text-sm py-1 rounded disabled:opacity-50"
         >
           {loading ? "Committing..." : "Commit All Files"}
         </button>
+        <button
+          onClick={handleCreateRepoAndCommit}
+          disabled={
+            loading || creatingRepo || (!repo.trim() && !newRepoName.trim())
+          }
+          className="w-full bg-emerald-700 text-white text-sm py-1 rounded disabled:opacity-50"
+        >
+          {loading || creatingRepo
+            ? "Working..."
+            : repo.trim()
+              ? "Commit Now"
+              : "Create Repo + Commit"}
+        </button>
+        {commitStatus ? (
+          <p className="text-xs text-muted-foreground">{commitStatus}</p>
+        ) : null}
       </div>
 
-      <div className="flex-1 p-4 text-sm text-muted-foreground">
-        Commit history coming soon...
+      {/* HISTORY */}
+      <div className="flex-1 overflow-y-auto p-3">
+        <h3 className="text-xs font-semibold mb-2 text-muted-foreground">
+          Commit History
+        </h3>
+
+        {!isValidRepo ? (
+          <p className="text-sm text-muted-foreground">
+            Enter repo like: owner/repo
+          </p>
+        ) : loadingHistory ? (
+          <p className="text-sm text-muted-foreground">Loading history...</p>
+        ) : cleanHistory.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No commits found</p>
+        ) : (
+          cleanHistory.map((item: any) => (
+            <div key={item.sha} className="mb-2 border rounded p-2 text-xs">
+              <div className="font-medium">{item.message}</div>
+              <div className="text-muted-foreground">{item.author}</div>
+              <div className="text-[10px] opacity-60">
+                {item.date ? new Date(item.date).toLocaleString() : ""}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 }
-
-export function DebugPanel() {
-  return (
-    <div className="flex h-full w-64 flex-col border-r bg-background">
-      <div className="border-b p-4">
-        <h2 className="text-sm font-semibold">RUN AND DEBUG</h2>
-      </div>
-      <ScrollArea className="flex-1 p-4">
-        <p className="text-sm text-muted-foreground">
-          To customize Run and Debug, create a launch.json file.
-        </p>
-      </ScrollArea>
-    </div>
-  );
-}
+// export function DebugPanel() {
+//   return (
+//     <div className="flex h-full w-64 flex-col border-r bg-background">
+//       <div className="border-b p-4">
+//         <h2 className="text-sm font-semibold">RUN AND DEBUG</h2>
+//       </div>
+//       <ScrollArea className="flex-1 p-4">
+//         <p className="text-sm text-muted-foreground">
+//           To customize Run and Debug, create a launch.json file.
+//         </p>
+//       </ScrollArea>
+//     </div>
+//   );
+// }
 
 export function ExtensionsPanel() {
   return (

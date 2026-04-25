@@ -198,6 +198,121 @@ const Page = () => {
 
   const activeFile = openFiles.find((file) => file.id === activeFileId);
   const hasUnsavedChanges = openFiles.some((file) => file.hasUnsavedChanges);
+  const commitTemplateData = React.useMemo(() => {
+    if (!templateData) return templateData;
+
+    const updatedTemplateData = JSON.parse(JSON.stringify(templateData));
+    const unsavedFiles = openFiles.filter((file) => file.hasUnsavedChanges);
+
+    if (unsavedFiles.length === 0) return updatedTemplateData;
+
+    const updateFileContentByName = (
+      items: (TemplateFile | TemplateFolder)[],
+      targetFile: (TemplateFile & { content: string }) | any,
+    ): (TemplateFile | TemplateFolder)[] =>
+      items.map((item) => {
+        if ("folderName" in item) {
+          return {
+            ...item,
+            items: updateFileContentByName(item.items, targetFile),
+          };
+        }
+
+        if (
+          item.filename === targetFile.filename &&
+          item.fileExtension === targetFile.fileExtension
+        ) {
+          return { ...item, content: targetFile.content };
+        }
+
+        return item;
+      });
+
+    const normalizeOpenFilePath = (file: any) => {
+      const basename = `${file.filename}.${file.fileExtension}`;
+      const rawId = String(file.id || "");
+
+      if (!rawId) return "";
+
+      let path = rawId.replace(/\\/g, "/").replace(/^\/+/, "");
+      const duplicatedSuffix = `/${basename}/${basename}`;
+      if (path.endsWith(duplicatedSuffix)) {
+        path = path.slice(0, -basename.length - 1);
+      }
+
+      return path;
+    };
+
+    const updateFileContentByPath = (
+      node: TemplateFolder,
+      fullPath: string,
+      newContent: string,
+    ) => {
+      const parts = fullPath.split("/").filter(Boolean);
+      if (!parts.length) return false;
+
+      const filePart = parts[parts.length - 1];
+      const folderParts = parts.slice(0, -1);
+      let folder: TemplateFolder = node;
+
+      for (const part of folderParts) {
+        const next = folder.items.find(
+          (item) => "folderName" in item && item.folderName === part,
+        ) as TemplateFolder | undefined;
+        if (!next) return false;
+        folder = next;
+      }
+
+      const dotIndex = filePart.lastIndexOf(".");
+      const targetName = dotIndex === -1 ? filePart : filePart.slice(0, dotIndex);
+      const targetExt = dotIndex === -1 ? "" : filePart.slice(dotIndex + 1);
+
+      const fileIndex = folder.items.findIndex(
+        (item) =>
+          !("folderName" in item) &&
+          item.filename === targetName &&
+          item.fileExtension === targetExt,
+      );
+      if (fileIndex === -1) return false;
+
+      const fileItem = folder.items[fileIndex] as TemplateFile;
+      folder.items[fileIndex] = { ...fileItem, content: newContent };
+      return true;
+    };
+
+    for (const unsavedFile of unsavedFiles) {
+      const normalizedPath = normalizeOpenFilePath(unsavedFile);
+      const updatedByPath =
+        normalizedPath &&
+        updateFileContentByPath(
+          updatedTemplateData,
+          normalizedPath,
+          unsavedFile.content || "",
+        );
+
+      if (!updatedByPath) {
+        updatedTemplateData.items = updateFileContentByName(
+          updatedTemplateData.items,
+          unsavedFile,
+        );
+      }
+    }
+
+    return updatedTemplateData;
+  }, [templateData, openFiles]);
+  const unsavedFilesForCommit = React.useMemo(
+    () =>
+      openFiles
+        .filter((file) => file.hasUnsavedChanges)
+        .map((file) => ({
+          id: file.id,
+          filename: file.filename,
+          fileExtension: file.fileExtension,
+          content: file.content || "",
+          hasUnsavedChanges: file.hasUnsavedChanges,
+        })),
+    [openFiles],
+  );
   const [isPreviewVisible, setIsPreviewVisible] = React.useState(true);
 
   useEffect(() => {
@@ -541,7 +656,10 @@ const Page = () => {
               />
             )}
             {sidebarOpen && activeView === "source-control" && (
-              <SourceControlPanel templateData={templateData} />
+              <SourceControlPanel
+                templateData={commitTemplateData}
+                unsavedFiles={unsavedFilesForCommit}
+              />
             )}
             {sidebarOpen && activeView === "debug" && <DebugPanel />}
             {sidebarOpen && activeView === "extensions" && <ExtensionsPanel />}
