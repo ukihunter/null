@@ -834,15 +834,16 @@ export function CollaborationPanel({
     React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const localVideoRef = React.useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = React.useRef<HTMLVideoElement>(null);
-  const remoteAudioRef = React.useRef<HTMLAudioElement>(null);
   const localStreamRef = React.useRef<MediaStream | null>(null);
   const peerConnectionsRef = React.useRef<Map<string, RTCPeerConnection>>(
     new Map(),
   );
-  const [remoteStream, setRemoteStream] = React.useState<MediaStream | null>(
-    null,
-  );
+  const [remoteStreams, setRemoteStreams] = React.useState<
+    Record<string, MediaStream>
+  >({});
+  const [callMembers, setCallMembers] = React.useState<
+    Record<string, { name: string; mode: "voice" | "video" }>
+  >({});
   const dragStateRef = React.useRef({
     dragging: false,
     offsetX: 0,
@@ -856,6 +857,10 @@ export function CollaborationPanel({
 
   const inviteUrl =
     typeof window !== "undefined"
+      ? `${window.location.origin}/editor/${sessionId}`
+      : "";
+  const autoJoinUrl =
+    typeof window !== "undefined"
       ? `${window.location.origin}/editor/${sessionId}?collab=1`
       : "";
 
@@ -868,8 +873,8 @@ export function CollaborationPanel({
     return h > 0 ? `${two(h)}:${two(m)}:${two(s)}` : `${two(m)}:${two(s)}`;
   }, []);
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(inviteUrl);
+  const handleCopy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -919,7 +924,7 @@ export function CollaborationPanel({
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
     }
-    setRemoteStream(null);
+    setRemoteStreams({});
     setIsMuted(false);
     setCallStartedAt(null);
     setCallElapsedSec(0);
@@ -939,7 +944,10 @@ export function CollaborationPanel({
       pc.ontrack = (event) => {
         const [incomingStream] = event.streams;
         if (incomingStream) {
-          setRemoteStream(incomingStream);
+          setRemoteStreams((prev) => ({
+            ...prev,
+            [targetUserId]: incomingStream,
+          }));
         }
       };
 
@@ -959,6 +967,10 @@ export function CollaborationPanel({
           pc.connectionState === "closed"
         ) {
           peerConnectionsRef.current.delete(targetUserId);
+          setRemoteStreams((prev) => {
+            const { [targetUserId]: _removed, ...rest } = prev;
+            return rest;
+          });
         }
       };
 
@@ -986,9 +998,31 @@ export function CollaborationPanel({
       const now = Date.now();
       setCallStartedAt(now);
       setCallElapsedSec(0);
+      // announce presence-in-call to others
+      triggerClientEvent?.("client-call-status", {
+        action: "join",
+        from: currentUserId,
+        name: activeUsers.find((u) => u.id === currentUserId)?.name ?? "You",
+        mode,
+      });
+      setCallMembers((prev) => ({
+        ...prev,
+        [currentUserId]: {
+          name: activeUsers.find((u) => u.id === currentUserId)?.name ?? "You",
+          mode,
+        },
+      }));
       void onLogActivity?.(`${mode}_call_joined`);
     },
-    [cleanupCall, getMedia, isCollaborationActive, onLogActivity],
+    [
+      cleanupCall,
+      getMedia,
+      isCollaborationActive,
+      onLogActivity,
+      triggerClientEvent,
+      currentUserId,
+      activeUsers,
+    ],
   );
 
   // Optional: allow invite links like `...?collab=1&call=voice|video` to auto-start a call.
@@ -1006,6 +1040,10 @@ export function CollaborationPanel({
   const endCall = React.useCallback(() => {
     cleanupCall();
     triggerClientEvent?.("client-webrtc-ended", { from: currentUserId });
+    triggerClientEvent?.("client-call-status", {
+      action: "leave",
+      from: currentUserId,
+    });
     if (callMode === "voice") {
       void onLogActivity?.("voice_call_left");
     }
@@ -1013,6 +1051,7 @@ export function CollaborationPanel({
       void onLogActivity?.("video_call_left");
     }
     setCallMode("none");
+    setCallMembers({});
   }, [callMode, cleanupCall, currentUserId, onLogActivity]);
 
   // Call duration timer
@@ -1034,6 +1073,54 @@ export function CollaborationPanel({
     setIsMuted(nextMuted);
   }, [isMuted]);
 
+  const MediaAudio = React.useCallback(
+    ({ stream }: { stream: MediaStream }) => {
+      return (
+        <audio
+          autoPlay
+          playsInline
+          ref={(el) => {
+            if (!el) return;
+            if ((el as any).srcObject !== stream) {
+              (el as any).srcObject = stream;
+              void el.play().catch(() => {});
+            }
+          }}
+        />
+      );
+    },
+    [],
+  );
+
+  const MediaVideo = React.useCallback(
+    ({
+      stream,
+      muted,
+      className,
+    }: {
+      stream: MediaStream;
+      muted?: boolean;
+      className?: string;
+    }) => {
+      return (
+        <video
+          autoPlay
+          playsInline
+          muted={!!muted}
+          className={className}
+          ref={(el) => {
+            if (!el) return;
+            if ((el as any).srcObject !== stream) {
+              (el as any).srcObject = stream;
+              void el.play().catch(() => {});
+            }
+          }}
+        />
+      );
+    },
+    [],
+  );
+
   React.useEffect(() => {
     if (!isCollaborationActive) {
       endCall();
@@ -1042,6 +1129,28 @@ export function CollaborationPanel({
 
   React.useEffect(() => {
     if (!isCollaborationActive || !currentUserId || !bindClientEvent) return;
+
+    const offCallStatus = bindClientEvent<{
+      action: "join" | "leave";
+      from: string;
+      name?: string;
+      mode?: "voice" | "video";
+    }>("client-call-status", (data) => {
+      if (!data?.from || data.from === currentUserId) return;
+      if (data.action === "leave") {
+        setCallMembers((prev) => {
+          const { [data.from]: _removed, ...rest } = prev;
+          return rest;
+        });
+        return;
+      }
+      if (data.action === "join" && data.name && data.mode) {
+        setCallMembers((prev) => ({
+          ...prev,
+          [data.from]: { name: data.name!, mode: data.mode! },
+        }));
+      }
+    });
 
     const offOffer = bindClientEvent<{
       to: string;
@@ -1055,6 +1164,18 @@ export function CollaborationPanel({
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         setCallMode(data.mode);
+        setCallMembers((prev) => ({
+          ...prev,
+          [currentUserId]: {
+            name:
+              activeUsers.find((u) => u.id === currentUserId)?.name ?? "You",
+            mode: data.mode,
+          },
+          [data.from]: {
+            name: activeUsers.find((u) => u.id === data.from)?.name ?? "User",
+            mode: data.mode,
+          },
+        }));
       }
 
       const pc = createPeerConnection(
@@ -1099,10 +1220,12 @@ export function CollaborationPanel({
       () => {
         cleanupCall();
         setCallMode("none");
+        setCallMembers({});
       },
     );
 
     return () => {
+      offCallStatus();
       offOffer();
       offAnswer();
       offIce();
@@ -1116,6 +1239,7 @@ export function CollaborationPanel({
     getMedia,
     isCollaborationActive,
     triggerClientEvent,
+    activeUsers,
   ]);
 
   React.useEffect(() => {
@@ -1145,19 +1269,6 @@ export function CollaborationPanel({
     isCollaborationActive,
     triggerClientEvent,
   ]);
-
-  React.useEffect(() => {
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = remoteStream;
-      // Autoplay is sometimes blocked; attempt play after user gesture (Join click)
-      // and also when remote stream becomes available.
-      remoteAudioRef.current.muted = false;
-      void remoteAudioRef.current.play().catch(() => {});
-    }
-  }, [remoteStream]);
 
   React.useEffect(() => {
     // Ensure local stream attaches even if the <video> mounts later (floating box).
@@ -1264,7 +1375,29 @@ export function CollaborationPanel({
                 size="icon"
                 variant="outline"
                 className="h-7 w-7 shrink-0"
-                onClick={handleCopy}
+                onClick={() => handleCopy(inviteUrl)}
+              >
+                {copied ? (
+                  <Check className="h-3 w-3 text-green-500" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
+            <p className="mt-2 text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+              Auto-Join Link (optional)
+            </p>
+            <div className="flex items-center gap-1">
+              <input
+                readOnly
+                value={autoJoinUrl}
+                className="flex-1 min-w-0 h-7 rounded border bg-muted px-2 text-[10px] truncate"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-7 w-7 shrink-0"
+                onClick={() => handleCopy(autoJoinUrl)}
               >
                 {copied ? (
                   <Check className="h-3 w-3 text-green-500" />
@@ -1317,6 +1450,33 @@ export function CollaborationPanel({
 
           {isCollaborationActive && (
             <>
+              {/* Call Participants */}
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
+                  In Call ({callMode === "none" ? 0 : Object.keys(callMembers).length})
+                </p>
+                {callMode === "none" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Not in a call
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {Object.entries(callMembers).map(([id, info]) => (
+                      <div key={id} className="flex items-center justify-between">
+                        <span className="text-xs truncate max-w-[160px]">
+                          {id === currentUserId ? `${info.name} (you)` : info.name}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                          {info.mode}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
               {/* Voice Call */}
               <div>
                 <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
@@ -1471,7 +1631,13 @@ export function CollaborationPanel({
         </div>
       )}
 
-      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+      {/* Remote audio for voice/video calls */}
+      {callMode !== "none" &&
+        Object.entries(remoteStreams).map(([userId, stream]) => (
+          <div key={userId} className="hidden">
+            <MediaAudio stream={stream} />
+          </div>
+        ))}
 
       {/* Floating mini video box */}
       {isCollaborationActive && callMode === "video" && (
@@ -1507,7 +1673,13 @@ export function CollaborationPanel({
           {!isVideoBoxMinimized && (
             <div className="p-0">
               <div className="h-44 w-full bg-black rounded-b-lg overflow-hidden">
-                <div className="grid h-full w-full grid-cols-2 gap-1 bg-black p-1">
+                <div
+                  className="grid h-full w-full gap-1 bg-black p-1"
+                  style={{
+                    gridTemplateColumns:
+                      Object.keys(remoteStreams).length > 0 ? "1fr 1fr" : "1fr",
+                  }}
+                >
                   <video
                     ref={localVideoRef}
                     autoPlay
@@ -1515,12 +1687,13 @@ export function CollaborationPanel({
                     playsInline
                     className="h-full w-full rounded object-cover"
                   />
-                  <video
-                    ref={remoteVideoRef}
-                    autoPlay
-                    playsInline
-                    className="h-full w-full rounded object-cover"
-                  />
+                  {Object.entries(remoteStreams).map(([userId, stream]) => (
+                    <MediaVideo
+                      key={userId}
+                      stream={stream}
+                      className="h-full w-full rounded object-cover"
+                    />
+                  ))}
                 </div>
               </div>
               <div className="p-2">
