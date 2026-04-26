@@ -25,6 +25,8 @@ import {
   GripHorizontal,
   Wifi,
   WifiOff,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -819,6 +821,9 @@ export function CollaborationPanel({
   const [callMode, setCallMode] = React.useState<"none" | "voice" | "video">(
     "none",
   );
+  const [callStartedAt, setCallStartedAt] = React.useState<number | null>(null);
+  const [callElapsedSec, setCallElapsedSec] = React.useState(0);
+  const [isMuted, setIsMuted] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [isVideoBoxMinimized, setIsVideoBoxMinimized] = React.useState(false);
   const [videoBoxPosition, setVideoBoxPosition] = React.useState({
@@ -851,8 +856,29 @@ export function CollaborationPanel({
 
   const inviteUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/editor/${sessionId}`
+      ? `${window.location.origin}/editor/${sessionId}?collab=1`
       : "";
+
+  // Optional: allow invite links like `...?collab=1&call=voice|video` to auto-start a call.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isCollaborationActive) return;
+    if (callMode !== "none") return;
+    const params = new URLSearchParams(window.location.search);
+    const call = params.get("call");
+    if (call === "voice" || call === "video") {
+      void startCall(call);
+    }
+  }, [callMode, isCollaborationActive, startCall]);
+
+  const formatDuration = React.useCallback((totalSec: number) => {
+    const sec = Math.max(0, Math.floor(totalSec));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const two = (n: number) => String(n).padStart(2, "0");
+    return h > 0 ? `${two(h)}:${two(m)}:${two(s)}` : `${two(m)}:${two(s)}`;
+  }, []);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(inviteUrl);
@@ -906,6 +932,9 @@ export function CollaborationPanel({
       localStreamRef.current = null;
     }
     setRemoteStream(null);
+    setIsMuted(false);
+    setCallStartedAt(null);
+    setCallElapsedSec(0);
   }, []);
 
   const createPeerConnection = React.useCallback(
@@ -948,7 +977,7 @@ export function CollaborationPanel({
       peerConnectionsRef.current.set(targetUserId, pc);
       return pc;
     },
-    [currentUserId],
+    [currentUserId, triggerClientEvent],
   );
 
   const startCall = React.useCallback(
@@ -966,6 +995,9 @@ export function CollaborationPanel({
         return;
       }
       setCallMode(mode);
+      const now = Date.now();
+      setCallStartedAt(now);
+      setCallElapsedSec(0);
       void onLogActivity?.(`${mode}_call_joined`);
     },
     [cleanupCall, getMedia, isCollaborationActive, onLogActivity],
@@ -982,6 +1014,25 @@ export function CollaborationPanel({
     }
     setCallMode("none");
   }, [callMode, cleanupCall, currentUserId, onLogActivity]);
+
+  // Call duration timer
+  React.useEffect(() => {
+    if (callMode === "none" || !callStartedAt) return;
+    const id = window.setInterval(() => {
+      setCallElapsedSec(Math.floor((Date.now() - callStartedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [callMode, callStartedAt]);
+
+  const toggleMute = React.useCallback(() => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const nextMuted = !isMuted;
+    stream.getAudioTracks().forEach((t) => {
+      t.enabled = !nextMuted;
+    });
+    setIsMuted(nextMuted);
+  }, [isMuted]);
 
   React.useEffect(() => {
     if (!isCollaborationActive) {
@@ -1290,6 +1341,31 @@ export function CollaborationPanel({
                     </>
                   )}
                 </Button>
+                {callMode === "voice" && (
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatDuration(callElapsedSec)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant={isMuted ? "destructive" : "outline"}
+                      className="h-7 text-xs gap-1.5"
+                      onClick={toggleMute}
+                      disabled={!localStreamRef.current}
+                      title={isMuted ? "Unmute" : "Mute"}
+                    >
+                      {isMuted ? (
+                        <>
+                          <MicOff className="h-3.5 w-3.5" /> Muted
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="h-3.5 w-3.5" /> Mute
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <Separator />
@@ -1448,6 +1524,29 @@ export function CollaborationPanel({
                 </div>
               </div>
               <div className="p-2">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {formatDuration(callElapsedSec)}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant={isMuted ? "destructive" : "outline"}
+                    className="h-7 text-xs gap-1.5"
+                    onClick={toggleMute}
+                    disabled={!localStreamRef.current}
+                    title={isMuted ? "Unmute" : "Mute"}
+                  >
+                    {isMuted ? (
+                      <>
+                        <MicOff className="h-3.5 w-3.5" /> Muted
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-3.5 w-3.5" /> Mute
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <Button
                   size="sm"
                   variant="destructive"

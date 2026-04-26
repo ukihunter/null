@@ -211,6 +211,18 @@ export function useCollaboration(sessionId: string) {
     (eventName: string, data: unknown) => {
       const channel = channelRef.current;
       if (!channel) return false;
+      if (!channel.subscribed) {
+        // Presence channels can exist before subscription completes.
+        // Retry shortly so signaling events (e.g. WebRTC) don't get dropped.
+        setTimeout(() => {
+          try {
+            channelRef.current?.trigger(eventName, data);
+          } catch {
+            // ignore
+          }
+        }, 100);
+        return false;
+      }
       try {
         return channel.trigger(eventName, data);
       } catch {
