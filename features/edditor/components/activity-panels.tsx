@@ -859,18 +859,6 @@ export function CollaborationPanel({
       ? `${window.location.origin}/editor/${sessionId}?collab=1`
       : "";
 
-  // Optional: allow invite links like `...?collab=1&call=voice|video` to auto-start a call.
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isCollaborationActive) return;
-    if (callMode !== "none") return;
-    const params = new URLSearchParams(window.location.search);
-    const call = params.get("call");
-    if (call === "voice" || call === "video") {
-      void startCall(call);
-    }
-  }, [callMode, isCollaborationActive, startCall]);
-
   const formatDuration = React.useCallback((totalSec: number) => {
     const sec = Math.max(0, Math.floor(totalSec));
     const h = Math.floor(sec / 3600);
@@ -1002,6 +990,18 @@ export function CollaborationPanel({
     },
     [cleanupCall, getMedia, isCollaborationActive, onLogActivity],
   );
+
+  // Optional: allow invite links like `...?collab=1&call=voice|video` to auto-start a call.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isCollaborationActive) return;
+    if (callMode !== "none") return;
+    const params = new URLSearchParams(window.location.search);
+    const call = params.get("call");
+    if (call === "voice" || call === "video") {
+      void startCall(call);
+    }
+  }, [callMode, isCollaborationActive, startCall]);
 
   const endCall = React.useCallback(() => {
     cleanupCall();
