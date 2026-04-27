@@ -47,7 +47,7 @@ export function Header() {
                   <span className="text-zinc-300 dark:text-zinc-700">|</span>
                   {/* Desktop Navigation Links */}
                   <div className="hidden sm:flex items-center gap-4">
-                    <Link
+                    {/* <Link
                       href="/dashboard"
                       className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
                     >
@@ -68,7 +68,7 @@ export function Header() {
                       <span className="text-green-500 dark:text-green-400 border border-green-500 dark:border-green-400 rounded-lg px-1 py-0.5 text-xs">
                         New
                       </span>
-                    </Link>
+                    </Link> */}
                   </div>
                 </div>
 
