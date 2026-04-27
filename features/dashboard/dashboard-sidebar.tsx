@@ -191,10 +191,10 @@ const DashboardSidebar: React.FC<{
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Settings">
-              <Link href="/dashboard">
+              {/* <Link href="/dashboard">
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
-              </Link>
+              </Link> */}
             </SidebarMenuButton>
             <SidebarMenuButton className="mt-2" asChild tooltip="User Menu">
               <UserButton />

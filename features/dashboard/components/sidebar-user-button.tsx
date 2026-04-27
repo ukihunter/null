@@ -72,7 +72,7 @@ const UserButton = () => {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem>
+        {/* <DropdownMenuItem>
           <Sparkles className="h-4 w-4 mr-2 text-muted-foreground" />
           <div className="font-semibold">Upgrade Plan</div>
         </DropdownMenuItem>
@@ -88,7 +88,7 @@ const UserButton = () => {
         <DropdownMenuItem>
           <Bell className="h-4 w-4 mr-2 text-muted-foreground" />
           <div className="font-semibold">Notifications</div>
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
 
         <LogoutButton>
           <DropdownMenuItem>
