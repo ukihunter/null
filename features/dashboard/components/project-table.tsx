@@ -249,7 +249,7 @@ export default function ProjectTable({
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link
-                          href={`/playground/${project.id}`}
+                          href={`/editor/${project.id}`}
                           className="flex items-center"
                         >
                           <Eye className="h-4 w-4 mr-2" />
@@ -258,7 +258,7 @@ export default function ProjectTable({
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link
-                          href={`/playground/${project.id}`}
+                          href={`/editor/${project.id}`}
                           target="_blank"
                           className="flex items-center"
                         >
