@@ -812,6 +812,7 @@ export interface CollaborationPanelProps {
     toggleMute: () => void;
   };
   hostId?: string | null;
+  onLeaveSession?: () => void;
 }
 
 export function CollaborationPanel({
@@ -828,6 +829,7 @@ export function CollaborationPanel({
   triggerClientEvent,
   webrtc,
   hostId,
+  onLeaveSession,
 }: CollaborationPanelProps) {
   const [input, setInput] = React.useState("");
   const [copied, setCopied] = React.useState(false);
@@ -924,10 +926,17 @@ export function CollaborationPanel({
           variant={isCollaborationActive ? "destructive" : "default"}
           className="w-full h-7 text-xs mt-2"
           onClick={() => {
-            if (isCollaborationActive && isHost && triggerClientEvent) {
-              triggerClientEvent("client-session-ended", { from: currentUserId });
+            if (isCollaborationActive) {
+              if (isHost && triggerClientEvent) {
+                triggerClientEvent("client-session-ended", { from: currentUserId });
+              }
+              onToggleCollaboration();
+              if (!isHost) {
+                onLeaveSession?.();
+              }
+            } else {
+              onToggleCollaboration();
             }
-            onToggleCollaboration();
           }}
         >
           {isCollaborationActive

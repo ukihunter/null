@@ -40,7 +40,13 @@ export function useWebRTC(
   }, []);
 
   const createPeerConnection = useCallback((targetUserId: string, mode: "voice" | "video", stream: MediaStream) => {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    const pc = new RTCPeerConnection({ 
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:global.stun.twilio.com:3478" }
+      ] 
+    });
     
     stream.getTracks().forEach((track) => {
       if (mode === "voice" && track.kind === "video") return;

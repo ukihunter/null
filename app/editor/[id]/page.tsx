@@ -805,6 +805,7 @@ const Page = () => {
                   toggleMute: webrtc.toggleMute,
                 }}
                 hostId={editorData?.userId}
+                onLeaveSession={() => router.push("/dashboard")}
               />
             )}
             {sidebarOpen && activeView === "account" && <AccountPanel />}
