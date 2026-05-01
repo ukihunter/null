@@ -820,6 +820,10 @@ const Page = () => {
                     isEnabled={aiSuggestion.isEnabled}
                     onToggle={aiSuggestion.toggleEnabled}
                     suggestionLoading={aiSuggestion.isLoading}
+                    activeFileName={activeFile ? `${activeFile.filename}.${activeFile.fileExtension}` : undefined}
+                    activeFileContent={activeFile?.content}
+                    activeFileLanguage={activeFile?.fileExtension}
+                    cursorPosition={cursor}
                   />
                   <div className="hidden sm:flex items-center gap-3">
                     <span className="text-zinc-300 dark:text-zinc-700">|</span>

@@ -25,6 +25,10 @@ interface ToggleAIProps {
   suggestionLoading: boolean;
   loadingProgress?: number;
   activeFeature?: string;
+  activeFileName?: string;
+  activeFileContent?: string;
+  activeFileLanguage?: string;
+  cursorPosition?: { line: number; column: number };
 }
 
 const ToggelAI = ({
@@ -33,6 +37,10 @@ const ToggelAI = ({
   suggestionLoading,
   loadingProgress = 0,
   activeFeature,
+  activeFileName,
+  activeFileContent,
+  activeFileLanguage = "TypeScript",
+  cursorPosition = { line: 1, column: 1 },
 }: ToggleAIProps) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -47,13 +55,6 @@ const ToggelAI = ({
   const handleRuncode = (code: string, language: string) => {
     console.log("Running code:", { code, language });
   };
-
-  const activeFile = {
-    name: "example.ts",
-    content: "//file content",
-  };
-
-  const cursorPosition = { line: 1, column: 1 };
 
   return (
     <>
@@ -180,9 +181,9 @@ const ToggelAI = ({
         onClose={() => setIsChatOpen(false)}
         onInsertCode={handleInsertCode}
         onRunCode={handleRuncode}
-        activeFileName={activeFile?.name}
-        activeFileContent={activeFile?.content}
-        activeFileLanguage="TypeScript" // Assuming TypeScript as the language
+        activeFileName={activeFileName}
+        activeFileContent={activeFileContent}
+        activeFileLanguage={activeFileLanguage}
         cursorPosition={cursorPosition}
         theme="dark"
       />
