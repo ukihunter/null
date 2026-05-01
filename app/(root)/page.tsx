@@ -36,6 +36,34 @@ export default function Home() {
           What we offer{" "}
         </h2>
         <FeaturesCards />
+        <section className="max-w-6xl mx-auto py-20 px-6">
+          <h2 className="text-3xl font-bold text-center mb-12">
+            Why developers choose Null
+          </h2>
+
+          <div className="grid md:grid-cols-3 gap-10">
+            <div>
+              <h3 className="font-semibold text-lg">⚡ Faster collaboration</h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Eliminate delays with real-time syncing.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-lg">🧠 Smart AI assistance</h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Get context-aware suggestions instantly.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-lg">🔒 Secure workspace</h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Your code stays private and protected.
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
     </>
   );

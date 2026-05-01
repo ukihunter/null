@@ -27,6 +27,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, commits: [] });
     }
 
+    if (!repoData.permissions?.push) {
+      return NextResponse.json(
+        { success: false, commits: [], error: "You do not have access to this repository. You can only view your own repositories." },
+        { status: 403 },
+      );
+    }
+
     const defaultBranch = repoData.default_branch || "main";
 
     const res = await fetch(

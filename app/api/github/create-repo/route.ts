@@ -13,6 +13,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         name,
         private: false,
+        auto_init: true,
       }),
     });
 

@@ -87,78 +87,14 @@ export async function POST(req: Request) {
       "Content-Type": "application/json",
     };
     const fallbackContentsCommit = async (fallbackReason: string) => {
-      const results: any[] = [];
-      const toBase64 = (str: string) =>
-        Buffer.from(str || "", "utf-8").toString("base64");
-
-      for (const file of fileList) {
-        const encoded = toBase64(file.content);
-        let sha: string | undefined;
-
-        const getRes = await fetch(
-          `https://api.github.com/repos/${owner}/${repoName}/contents/${file.path}`,
-          { headers },
-        );
-
-        if (getRes.ok) {
-          const getData = await getRes.json();
-          sha = getData.sha;
-        }
-
-        const putRes = await fetch(
-          `https://api.github.com/repos/${owner}/${repoName}/contents/${file.path}`,
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify({
-              message: message || "commit from IDE",
-              content: encoded,
-              ...(sha ? { sha } : {}),
-            }),
-          },
-        );
-        const putData = await putRes.json();
-
-        if (!putRes.ok) {
-          const putMessage = String(putData?.message || "").toLowerCase();
-          if (
-            putRes.status === 422 &&
-            (putMessage.includes("same") || putMessage.includes("identical"))
-          ) {
-            results.push({ file: file.path, skipped: true, reason: "no change" });
-            continue;
-          }
-
-          results.push({
-            file: file.path,
-            ok: false,
-            error: putData?.message || "Failed updating file",
-          });
-          continue;
-        }
-
-        results.push({
-          file: file.path,
-          ok: true,
-          changed: Boolean(putData?.commit?.sha || putData?.content?.sha),
-          commitSha: putData?.commit?.sha,
-        });
-      }
-
-      const committed = results.filter((r) => r.changed).length;
-      const skipped = results.filter((r) => r.skipped).length;
-      const failed = results.filter((r) => r.ok === false).length;
-
-      return NextResponse.json({
-        success: committed > 0 || skipped > 0 || failed === 0,
-        totalFiles: fileList.length,
-        committedFiles: committed,
-        skippedFiles: skipped,
-        failedFiles: failed,
-        fallback: "contents-api",
-        fallbackReason,
-        results,
-      });
+      // We removed the file-by-file contents fallback because it creates a separate
+      // commit for every single file. We will instead throw an error to the user
+      // if the atomic commit flow fails, so they know exactly what went wrong.
+      commitLock = false;
+      return NextResponse.json(
+        { success: false, error: fallbackReason || "Atomic commit failed. Please try again." },
+        { status: 500 }
+      );
     };
 
     try {
@@ -176,6 +112,14 @@ export async function POST(req: Request) {
         );
       }
 
+      if (!repoData.permissions?.push) {
+        commitLock = false;
+        return NextResponse.json(
+          { success: false, error: "You do not have push access to this repository. You can only commit to your own repositories." },
+          { status: 403 },
+        );
+      }
+
       const defaultBranch = repoData.default_branch || "main";
 
       const refRes = await fetch(
@@ -183,30 +127,31 @@ export async function POST(req: Request) {
         { headers },
       );
       const refData = await refRes.json();
+      
+      const isEmptyRepo = !refRes.ok;
 
-      if (!refRes.ok) {
-        commitLock = false;
-        return await fallbackContentsCommit(
-          refData?.message || "Failed to load branch ref for atomic commit",
+      let baseCommitSha: string | undefined;
+      let baseTreeSha: string | undefined;
+
+      if (!isEmptyRepo) {
+        baseCommitSha = refData.object?.sha;
+
+        const commitRes = await fetch(
+          `https://api.github.com/repos/${owner}/${repoName}/git/commits/${baseCommitSha}`,
+          { headers },
         );
+        const commitData = await commitRes.json();
+
+        if (!commitRes.ok) {
+          commitLock = false;
+          return await fallbackContentsCommit(
+            commitData?.message || "Failed to load base commit for atomic commit",
+          );
+        }
+
+        baseTreeSha = commitData.tree?.sha;
       }
 
-      const baseCommitSha = refData.object?.sha;
-
-      const commitRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repoName}/git/commits/${baseCommitSha}`,
-        { headers },
-      );
-      const commitData = await commitRes.json();
-
-      if (!commitRes.ok) {
-        commitLock = false;
-        return await fallbackContentsCommit(
-          commitData?.message || "Failed to load base commit for atomic commit",
-        );
-      }
-
-      const baseTreeSha = commitData.tree?.sha;
       const treeEntries: Array<{
         path: string;
         mode: string;
@@ -249,7 +194,7 @@ export async function POST(req: Request) {
           method: "POST",
           headers,
           body: JSON.stringify({
-            base_tree: baseTreeSha,
+            ...(baseTreeSha ? { base_tree: baseTreeSha } : {}),
             tree: treeEntries,
           }),
         },
@@ -263,7 +208,7 @@ export async function POST(req: Request) {
         );
       }
 
-      if (treeData.sha === baseTreeSha) {
+      if (baseTreeSha && treeData.sha === baseTreeSha) {
         commitLock = false;
         return NextResponse.json({
           success: true,
@@ -285,7 +230,7 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             message: message || "commit from IDE",
             tree: treeData.sha,
-            parents: [baseCommitSha],
+            ...(baseCommitSha ? { parents: [baseCommitSha] } : {}),
           }),
         },
       );
@@ -298,24 +243,46 @@ export async function POST(req: Request) {
         );
       }
 
-      const updateRefRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repoName}/git/refs/heads/${defaultBranch}`,
-        {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify({
-            sha: newCommitData.sha,
-            force: false,
-          }),
-        },
-      );
-      const updateRefData = await updateRefRes.json();
-
-      if (!updateRefRes.ok) {
-        commitLock = false;
-        return await fallbackContentsCommit(
-          updateRefData?.message || "Failed to update branch ref for atomic commit",
+      if (isEmptyRepo) {
+        const createRefRes = await fetch(
+          `https://api.github.com/repos/${owner}/${repoName}/git/refs`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              ref: `refs/heads/${defaultBranch}`,
+              sha: newCommitData.sha,
+            }),
+          },
         );
+        const createRefData = await createRefRes.json();
+
+        if (!createRefRes.ok) {
+          commitLock = false;
+          return await fallbackContentsCommit(
+            createRefData?.message || "Failed to create branch ref for atomic commit",
+          );
+        }
+      } else {
+        const updateRefRes = await fetch(
+          `https://api.github.com/repos/${owner}/${repoName}/git/refs/heads/${defaultBranch}`,
+          {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({
+              sha: newCommitData.sha,
+              force: false,
+            }),
+          },
+        );
+        const updateRefData = await updateRefRes.json();
+
+        if (!updateRefRes.ok) {
+          commitLock = false;
+          return await fallbackContentsCommit(
+            updateRefData?.message || "Failed to update branch ref for atomic commit",
+          );
+        }
       }
 
       commitLock = false;
