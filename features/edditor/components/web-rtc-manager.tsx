@@ -8,7 +8,7 @@ interface WebRTCManagerProps {
   callElapsedSec: number;
   isMuted: boolean;
   remoteStreams: Record<string, MediaStream>;
-  localVideoRef: React.RefObject<HTMLVideoElement>;
+  localVideoRef: React.RefObject<HTMLVideoElement | null>;
   endCall: () => void;
   toggleMute: () => void;
 }

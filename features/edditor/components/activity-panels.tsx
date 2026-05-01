@@ -864,6 +864,37 @@ export function CollaborationPanel({
     return h > 0 ? `${two(h)}:${two(m)}:${two(s)}` : `${two(m)}:${two(s)}`;
   }, []);
 
+  const handleCopy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || sending) return;
+    setSending(true);
+    await sendMessage(input.trim());
+    setInput("");
+    setSending(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  function getInitials(name: string | null): string {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
       {/* Header */}
