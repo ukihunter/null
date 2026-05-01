@@ -20,6 +20,9 @@ export function useWebRTC(
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  
+  const iceCandidateQueue = useRef<{to: string, candidate: RTCIceCandidateInit}[]>([]);
+  const iceCandidateTimer = useRef<NodeJS.Timeout | null>(null);
 
   const getMedia = useCallback(async (mode: "voice" | "video") => {
     const constraints = mode === "video" ? { audio: true, video: true } : { audio: true, video: false };
@@ -66,7 +69,25 @@ export function useWebRTC(
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
-      triggerClientEvent("client-webrtc-ice", { to: targetUserId, from: currentUserId, candidate: event.candidate });
+      
+      iceCandidateQueue.current.push({ to: targetUserId, candidate: event.candidate });
+      
+      if (!iceCandidateTimer.current) {
+        iceCandidateTimer.current = setTimeout(() => {
+          const candidatesByTarget: Record<string, RTCIceCandidateInit[]> = {};
+          iceCandidateQueue.current.forEach(item => {
+             if (!candidatesByTarget[item.to]) candidatesByTarget[item.to] = [];
+             candidatesByTarget[item.to].push(item.candidate);
+          });
+          
+          Object.entries(candidatesByTarget).forEach(([to, candidates]) => {
+             triggerClientEvent("client-webrtc-ice-batch", { to, from: currentUserId, candidates });
+          });
+          
+          iceCandidateQueue.current = [];
+          iceCandidateTimer.current = null;
+        }, 500); // Send candidates in batches every 500ms to avoid Pusher rate limits
+      }
     };
 
     pc.onconnectionstatechange = () => {
@@ -254,19 +275,21 @@ export function useWebRTC(
       }
     );
 
-    const offIce = bindClientEvent<{ to: string; from: string; candidate: RTCIceCandidateInit }>(
-      "client-webrtc-ice",
+    const offIceBatch = bindClientEvent<{ to: string; from: string; candidates: RTCIceCandidateInit[] }>(
+      "client-webrtc-ice-batch",
       async (data) => {
         if (data.to !== currentUserId) return;
         const pc = peerConnectionsRef.current.get(data.from);
         
-        if (pc && pc.remoteDescription) {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.error("ICE error", e));
-        } else {
-          // Buffer candidate if PC is not ready or remoteDescription is not set
-          const pending = pendingCandidatesRef.current.get(data.from) || [];
-          pending.push(data.candidate);
-          pendingCandidatesRef.current.set(data.from, pending);
+        for (const candidate of data.candidates) {
+          if (pc && pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error("ICE error", e));
+          } else {
+            // Buffer candidate if PC is not ready or remoteDescription is not set
+            const pending = pendingCandidatesRef.current.get(data.from) || [];
+            pending.push(candidate);
+            pendingCandidatesRef.current.set(data.from, pending);
+          }
         }
       }
     );
@@ -293,7 +316,7 @@ export function useWebRTC(
       offOffer();
       offDeclined();
       offAnswer();
-      offIce();
+      offIceBatch();
       offEnded();
     };
   }, [activeUsers, bindClientEvent, callMode, currentUserId, getMedia, isCollaborationActive, triggerClientEvent]);
