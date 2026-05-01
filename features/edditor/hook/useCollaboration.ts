@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { getPusherClient } from "@/lib/pusher-client";
 import type { PresenceChannel } from "pusher-js";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 export interface CollabUser {
   id: string;
@@ -107,6 +108,7 @@ export function useCollaboration(sessionId: string) {
     });
 
     channel.bind("pusher:member_added", (member: PusherMember) => {
+      toast.success(`${member.info?.name ?? "Someone"} joined the session`, { position: 'bottom-right' });
       setActiveUsers((prev) => {
         if (prev.find((u) => u.id === member.id)) return prev;
         return [
@@ -123,7 +125,15 @@ export function useCollaboration(sessionId: string) {
     });
 
     channel.bind("pusher:member_removed", (member: PusherMember) => {
-      setActiveUsers((prev) => prev.filter((u) => u.id !== member.id));
+      setActiveUsers((prev) => {
+        const removedUser = prev.find((u) => u.id === member.id);
+        if (removedUser) {
+          toast.info(`${removedUser.name} left the session`, { position: 'bottom-right' });
+        } else {
+          toast.info(`Someone left the session`, { position: 'bottom-right' });
+        }
+        return prev.filter((u) => u.id !== member.id);
+      });
       setCursors((prev) => {
         const next = new Map(prev);
         next.delete(member.id);

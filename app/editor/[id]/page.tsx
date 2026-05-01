@@ -941,6 +941,8 @@ const Page = () => {
                                     editor={fileEditing.getFileEditor(
                                       activeFileId || "",
                                     )}
+                                    currentUserId={session?.user?.id}
+                                    onUnlock={() => fileEditing.stopEditingFile(activeFileId || "")}
                                   />
                                 </div>
                               )}
@@ -1104,6 +1106,8 @@ const Page = () => {
                                   editor={fileEditing.getFileEditor(
                                     activeFileId || "",
                                   )}
+                                  currentUserId={session?.user?.id}
+                                  onUnlock={() => fileEditing.stopEditingFile(activeFileId || "")}
                                 />
                               </div>
                             )}

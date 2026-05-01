@@ -1361,54 +1361,34 @@ export function CollaborationPanel({
       <ScrollArea className="flex-1">
         <div className="p-3 space-y-4">
           {/* Invite Link */}
-          <div>
-            <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
-              Invite Link
-            </p>
-            <div className="flex items-center gap-1">
-              <input
-                readOnly
-                value={inviteUrl}
-                className="flex-1 min-w-0 h-7 rounded border bg-muted px-2 text-[10px] truncate"
-              />
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-7 w-7 shrink-0"
-                onClick={() => handleCopy(inviteUrl)}
-              >
-                {copied ? (
-                  <Check className="h-3 w-3 text-green-500" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-              </Button>
+          {isCollaborationActive && (
+            <div>
+              <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+                Auto-Join Link
+              </p>
+              <div className="flex items-center gap-1">
+                <input
+                  readOnly
+                  value={autoJoinUrl}
+                  className="flex-1 min-w-0 h-7 rounded border bg-muted px-2 text-[10px] truncate"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7 shrink-0"
+                  onClick={() => handleCopy(autoJoinUrl)}
+                >
+                  {copied ? (
+                    <Check className="h-3 w-3 text-green-500" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
             </div>
-            <p className="mt-2 text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
-              Auto-Join Link (optional)
-            </p>
-            <div className="flex items-center gap-1">
-              <input
-                readOnly
-                value={autoJoinUrl}
-                className="flex-1 min-w-0 h-7 rounded border bg-muted px-2 text-[10px] truncate"
-              />
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-7 w-7 shrink-0"
-                onClick={() => handleCopy(autoJoinUrl)}
-              >
-                {copied ? (
-                  <Check className="h-3 w-3 text-green-500" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-              </Button>
-            </div>
-          </div>
+          )}
 
-          <Separator />
+          {isCollaborationActive && <Separator />}
 
           {/* Active Users */}
           <div>

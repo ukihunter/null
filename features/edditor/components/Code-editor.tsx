@@ -677,16 +677,21 @@ const CodeEditor = ({
 
     let relevantCursorCount = 0;
     remoteCursors.forEach((cursor) => {
-      console.log("Checking cursor:", {
-        userId: cursor.userId,
-        fileId: cursor.fileId,
-        activeFileId,
-        line: cursor.line,
-        column: cursor.column,
-      });
-
       if (cursor.fileId === activeFileId) {
         relevantCursorCount++;
+        
+        // Dynamically inject styles for this user's color if it doesn't exist
+        const styleId = `remote-cursor-style-${cursor.userId}`;
+        if (!document.getElementById(styleId)) {
+          const style = document.createElement("style");
+          style.id = styleId;
+          style.innerHTML = `
+            .remote-cursor-line-${cursor.userId} { border-left: 2px solid ${cursor.color} !important; }
+            .remote-cursor-label-${cursor.userId} { background-color: ${cursor.color} !important; color: white !important; }
+          `;
+          document.head.appendChild(style);
+        }
+
         // Main cursor line decoration with background color
         decorations.push({
           range: new monaco.Range(
@@ -697,7 +702,7 @@ const CodeEditor = ({
           ),
           options: {
             isWholeLine: false,
-            className: `remote-cursor-decoration`,
+            className: `remote-cursor-decoration remote-cursor-line-${cursor.userId}`,
             inlineClassName: `remote-cursor-inline`,
             glyphMarginClassName: "remote-cursor-glyph",
             stickiness:
@@ -721,7 +726,7 @@ const CodeEditor = ({
             isWholeLine: false,
             before: {
               contentText: ` ${cursor.userName} `,
-              inlineClassName: `remote-cursor-label`,
+              inlineClassName: `remote-cursor-label remote-cursor-label-${cursor.userId}`,
               inlineClassNameAffectsLetterSpacing: false,
             },
             stickiness:
