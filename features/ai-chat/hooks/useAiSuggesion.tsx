@@ -55,9 +55,22 @@ export const useAISuggestion = (): UseAISuggestionReturn => {
 
       (async () => {
         try {
+          const fullContent = model.getValue();
+          const lines = fullContent.split('\n');
+          const cursorLineIndex = currentPosition.lineNumber - 1;
+          
+          // Extract 5 lines above and 5 lines below the current cursor
+          const startLine = Math.max(0, cursorLineIndex - 5);
+          const endLine = Math.min(lines.length, cursorLineIndex + 5 + 1);
+          const snippetLines = lines.slice(startLine, endLine);
+          const snippetContent = snippetLines.join('\n');
+          
+          // Calculate cursor position relative to the snippet
+          const relativeCursorLine = cursorLineIndex - startLine;
+
           const payload = {
-            fileContent: model.getValue(),
-            cursorLine: currentPosition.lineNumber - 1,
+            fileContent: snippetContent,
+            cursorLine: relativeCursorLine,
             cursorColumn: currentPosition.column - 1,
             suggestionType: type,
           };

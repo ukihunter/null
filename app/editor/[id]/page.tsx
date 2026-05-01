@@ -80,6 +80,9 @@ import { useCollaboration } from "@/features/edditor/hook/useCollaboration";
 import { useFileEditing } from "@/features/edditor/hook/useFileEditing";
 import { FileEditingIndicator } from "@/features/edditor/components/file-editing-indicator";
 import { useSession } from "next-auth/react";
+import UserButton from "@/features/dashboard/components/sidebar-user-button";
+import { ThemeToggle } from "@/components/ui/toggle-theme";
+
 //import { editor } from "monaco-editor";
 //import { error } from "console";
 
@@ -818,6 +821,12 @@ const Page = () => {
                     onToggle={aiSuggestion.toggleEnabled}
                     suggestionLoading={aiSuggestion.isLoading}
                   />
+                  <div className="hidden sm:flex items-center gap-3">
+                    <span className="text-zinc-300 dark:text-zinc-700">|</span>
+                    {/* <HeaderPro /> */}
+                    <ThemeToggle />
+                    {/* <UserButton /> */}
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="sm" variant="outline">
@@ -830,10 +839,10 @@ const Page = () => {
                       >
                         {isPreviewVisible ? "Hide" : "Show"} Preview
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => {}}>
+                      {/* <DropdownMenuSeparator /> */}
+                      {/* <DropdownMenuItem onClick={() => {}}>
                         Editor Settings
-                      </DropdownMenuItem>
+                      </DropdownMenuItem> */}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -940,108 +949,130 @@ const Page = () => {
                                 }`}
                               >
                                 <CodeEditor
-                            activeFile={activeFile}
-                            content={activeFile?.content || ""}
-                            onContentChange={async (value: string) => {
-                              if (activeFileId && activeFile) {
-                                if (
-                                  fileEditing.isFileBeingEditedByOther(
-                                    activeFileId,
-                                  )
-                                ) {
-                                  return;
-                                }
-                                updateFileContent(activeFileId, value);
+                                  activeFile={activeFile}
+                                  content={activeFile?.content || ""}
+                                  onContentChange={async (value: string) => {
+                                    if (activeFileId && activeFile) {
+                                      if (
+                                        fileEditing.isFileBeingEditedByOther(
+                                          activeFileId,
+                                        )
+                                      ) {
+                                        return;
+                                      }
+                                      updateFileContent(activeFileId, value);
 
-                                // Skip onChange during initial mount to prevent false positives
-                                if (!isInitializingRef.current) {
-                                  // Get the last known content for this file
-                                  const lastContent =
-                                    lastBroadcastContentRef.current.get(
-                                      activeFileId,
-                                    );
+                                      // Skip onChange during initial mount to prevent false positives
+                                      if (!isInitializingRef.current) {
+                                        // Get the last known content for this file
+                                        const lastContent =
+                                          lastBroadcastContentRef.current.get(
+                                            activeFileId,
+                                          );
 
-                                  // Only broadcast if content has ACTUALLY changed from what we last saw
-                                  if (
-                                    lastContent !== undefined &&
-                                    value !== lastContent
-                                  ) {
-                                    // User is actively making changes - start broadcasting editing
-                                    console.log(
-                                      `Content changed for ${activeFileId}. Broadcasting start edit.`,
-                                    );
-                                    fileEditing.startEditingFile(activeFileId);
-                                    lastBroadcastContentRef.current.set(
-                                      activeFileId,
-                                      value,
-                                    );
-                                  }
-                                }
+                                        // Only broadcast if content has ACTUALLY changed from what we last saw
+                                        if (
+                                          lastContent !== undefined &&
+                                          value !== lastContent
+                                        ) {
+                                          // User is actively making changes - start broadcasting editing
+                                          console.log(
+                                            `Content changed for ${activeFileId}. Broadcasting start edit.`,
+                                          );
+                                          fileEditing.startEditingFile(
+                                            activeFileId,
+                                          );
+                                          lastBroadcastContentRef.current.set(
+                                            activeFileId,
+                                            value,
+                                          );
+                                        }
+                                      }
 
-                                // Broadcast to collaborators (debounced 300ms)
-                                if (broadcastTimerRef.current) {
-                                  clearTimeout(broadcastTimerRef.current);
-                                }
-                                broadcastTimerRef.current = setTimeout(() => {
-                                  collab.broadcastCodeChange(
-                                    activeFileId,
-                                    value,
-                                  );
-                                }, 300);
-
-                                // Sync changes to WebContainer in real-time (for dev server HMR)
-                                if (writeFileSync && templateData && instance) {
-                                  const filePath = findFilePath(
-                                    activeFile,
-                                    templateData,
-                                  );
-                                  if (filePath) {
-                                    try {
-                                      await writeFileSync(filePath, value);
-                                      await instance.fs.writeFile(
-                                        filePath,
-                                        value,
+                                      // Broadcast to collaborators (debounced 300ms)
+                                      if (broadcastTimerRef.current) {
+                                        clearTimeout(broadcastTimerRef.current);
+                                      }
+                                      broadcastTimerRef.current = setTimeout(
+                                        () => {
+                                          collab.broadcastCodeChange(
+                                            activeFileId,
+                                            value,
+                                          );
+                                        },
+                                        300,
                                       );
-                                    } catch (error) {
-                                      console.error(
-                                        "Failed to sync file to WebContainer:",
-                                        error,
+
+                                      // Sync changes to WebContainer in real-time (for dev server HMR)
+                                      if (
+                                        writeFileSync &&
+                                        templateData &&
+                                        instance
+                                      ) {
+                                        const filePath = findFilePath(
+                                          activeFile,
+                                          templateData,
+                                        );
+                                        if (filePath) {
+                                          try {
+                                            await writeFileSync(
+                                              filePath,
+                                              value,
+                                            );
+                                            await instance.fs.writeFile(
+                                              filePath,
+                                              value,
+                                            );
+                                          } catch (error) {
+                                            console.error(
+                                              "Failed to sync file to WebContainer:",
+                                              error,
+                                            );
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }}
+                                  onCursorChange={(
+                                    line: number,
+                                    column: number,
+                                  ) => {
+                                    if (activeFileId) {
+                                      collab.broadcastCursor(
+                                        activeFileId,
+                                        line,
+                                        column,
                                       );
                                     }
+                                    setCursor({ line, column });
+                                  }}
+                                  remoteCursors={collab.cursors}
+                                  activeFileId={activeFileId}
+                                  suggestion={aiSuggestion.suggestion}
+                                  suggestionLoading={aiSuggestion.isLoading}
+                                  suggestionPosition={aiSuggestion.position}
+                                  onAcceptSuggestion={(
+                                    editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                    monaco: typeof import("monaco-editor"),
+                                  ) =>
+                                    aiSuggestion.acceptSuggestion(
+                                      editor,
+                                      monaco,
+                                    )
                                   }
-                                }
-                              }
-                            }}
-                            onCursorChange={(line: number, column: number) => {
-                              if (activeFileId) {
-                                collab.broadcastCursor(
-                                  activeFileId,
-                                  line,
-                                  column,
-                                );
-                              }
-                              setCursor({ line, column });
-                            }}
-                            remoteCursors={collab.cursors}
-                            activeFileId={activeFileId}
-                            suggestion={aiSuggestion.suggestion}
-                            suggestionLoading={aiSuggestion.isLoading}
-                            suggestionPosition={aiSuggestion.position}
-                            onAcceptSuggestion={(
-                              editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                              monaco: typeof import("monaco-editor"),
-                            ) => aiSuggestion.acceptSuggestion(editor, monaco)}
-                            onTriggerSuggestion={(
-                              type: string,
-                              editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                            ) => aiSuggestion.fetchSuggestion(type, editor)}
-                            onRejectSuggestion={(
-                              type: string,
-                              editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                            ) => aiSuggestion.rejectSuggestion(editor)}
-                            readOnly={fileEditing.isFileBeingEditedByOther(
-                              activeFileId || "",
-                            )}
+                                  onTriggerSuggestion={(
+                                    type: string,
+                                    editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                  ) =>
+                                    aiSuggestion.fetchSuggestion(type, editor)
+                                  }
+                                  onRejectSuggestion={(
+                                    type: string,
+                                    editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                  ) => aiSuggestion.rejectSuggestion(editor)}
+                                  readOnly={fileEditing.isFileBeingEditedByOther(
+                                    activeFileId || "",
+                                  )}
                                 />
                               </div>
                             </div>
@@ -1081,98 +1112,112 @@ const Page = () => {
                               }`}
                             >
                               <CodeEditor
-                            activeFile={activeFile}
-                            content={activeFile?.content || ""}
-                            onContentChange={async (value: string) => {
-                              if (activeFileId && activeFile) {
-                                if (
-                                  fileEditing.isFileBeingEditedByOther(
-                                    activeFileId,
-                                  )
-                                ) {
-                                  return;
-                                }
-                                updateFileContent(activeFileId, value);
+                                activeFile={activeFile}
+                                content={activeFile?.content || ""}
+                                onContentChange={async (value: string) => {
+                                  if (activeFileId && activeFile) {
+                                    if (
+                                      fileEditing.isFileBeingEditedByOther(
+                                        activeFileId,
+                                      )
+                                    ) {
+                                      return;
+                                    }
+                                    updateFileContent(activeFileId, value);
 
-                                if (!isInitializingRef.current) {
-                                  const lastContent =
-                                    lastBroadcastContentRef.current.get(
-                                      activeFileId,
+                                    if (!isInitializingRef.current) {
+                                      const lastContent =
+                                        lastBroadcastContentRef.current.get(
+                                          activeFileId,
+                                        );
+                                      if (
+                                        lastContent !== undefined &&
+                                        value !== lastContent
+                                      ) {
+                                        fileEditing.startEditingFile(
+                                          activeFileId,
+                                        );
+                                        lastBroadcastContentRef.current.set(
+                                          activeFileId,
+                                          value,
+                                        );
+                                      }
+                                    }
+
+                                    if (broadcastTimerRef.current) {
+                                      clearTimeout(broadcastTimerRef.current);
+                                    }
+                                    broadcastTimerRef.current = setTimeout(
+                                      () => {
+                                        collab.broadcastCodeChange(
+                                          activeFileId,
+                                          value,
+                                        );
+                                      },
+                                      300,
                                     );
-                                  if (
-                                    lastContent !== undefined &&
-                                    value !== lastContent
-                                  ) {
-                                    fileEditing.startEditingFile(activeFileId);
-                                    lastBroadcastContentRef.current.set(
-                                      activeFileId,
-                                      value,
-                                    );
-                                  }
-                                }
 
-                                if (broadcastTimerRef.current) {
-                                  clearTimeout(broadcastTimerRef.current);
-                                }
-                                broadcastTimerRef.current = setTimeout(() => {
-                                  collab.broadcastCodeChange(
-                                    activeFileId,
-                                    value,
-                                  );
-                                }, 300);
-
-                                if (writeFileSync && templateData && instance) {
-                                  const filePath = findFilePath(
-                                    activeFile,
-                                    templateData,
-                                  );
-                                  if (filePath) {
-                                    try {
-                                      await writeFileSync(filePath, value);
-                                      await instance.fs.writeFile(
-                                        filePath,
-                                        value,
+                                    if (
+                                      writeFileSync &&
+                                      templateData &&
+                                      instance
+                                    ) {
+                                      const filePath = findFilePath(
+                                        activeFile,
+                                        templateData,
                                       );
-                                    } catch (error) {
-                                      console.error(
-                                        "Failed to sync file to WebContainer:",
-                                        error,
-                                      );
+                                      if (filePath) {
+                                        try {
+                                          await writeFileSync(filePath, value);
+                                          await instance.fs.writeFile(
+                                            filePath,
+                                            value,
+                                          );
+                                        } catch (error) {
+                                          console.error(
+                                            "Failed to sync file to WebContainer:",
+                                            error,
+                                          );
+                                        }
+                                      }
                                     }
                                   }
+                                }}
+                                onCursorChange={(
+                                  line: number,
+                                  column: number,
+                                ) => {
+                                  if (activeFileId) {
+                                    collab.broadcastCursor(
+                                      activeFileId,
+                                      line,
+                                      column,
+                                    );
+                                  }
+                                  setCursor({ line, column });
+                                }}
+                                remoteCursors={collab.cursors}
+                                activeFileId={activeFileId}
+                                suggestion={aiSuggestion.suggestion}
+                                suggestionLoading={aiSuggestion.isLoading}
+                                suggestionPosition={aiSuggestion.position}
+                                onAcceptSuggestion={(
+                                  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                  monaco: typeof import("monaco-editor"),
+                                ) =>
+                                  aiSuggestion.acceptSuggestion(editor, monaco)
                                 }
-                              }
-                            }}
-                            onCursorChange={(line: number, column: number) => {
-                              if (activeFileId) {
-                                collab.broadcastCursor(
-                                  activeFileId,
-                                  line,
-                                  column,
-                                );
-                              }
-                              setCursor({ line, column });
-                            }}
-                            remoteCursors={collab.cursors}
-                            activeFileId={activeFileId}
-                            suggestion={aiSuggestion.suggestion}
-                            suggestionLoading={aiSuggestion.isLoading}
-                            suggestionPosition={aiSuggestion.position}
-                            onAcceptSuggestion={(
-                              editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                              monaco: typeof import("monaco-editor"),
-                            ) => aiSuggestion.acceptSuggestion(editor, monaco)}
-                            onTriggerSuggestion={(
-                              type: string,
-                              editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                            ) => aiSuggestion.fetchSuggestion(type, editor)}
-                            onRejectSuggestion={(
-                              type: string,
-                              editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                            ) => aiSuggestion.rejectSuggestion(editor)}
-                            readOnly={fileEditing.isFileBeingEditedByOther(
-                              activeFileId || "",
-                            )}
+                                onTriggerSuggestion={(
+                                  type: string,
+                                  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                ) => aiSuggestion.fetchSuggestion(type, editor)}
+                                onRejectSuggestion={(
+                                  type: string,
+                                  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                ) => aiSuggestion.rejectSuggestion(editor)}
+                                readOnly={fileEditing.isFileBeingEditedByOther(
+                                  activeFileId || "",
+                                )}
                               />
                             </div>
                           </div>

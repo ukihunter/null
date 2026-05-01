@@ -177,11 +177,15 @@ async function generateSuggestion(prompt: string): Promise<string> {
 
   // Fallback: Gemini
   const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) return "// AI suggestion unavailable";
+  // if (!geminiKey) return "// AI suggestion unavailable";
+  if (!geminiKey) {
+    console.error("❌ GEMINI KEY MISSING IN SUGGESTION ROUTE");
+    return "// AI suggestion unavailable";
+  }
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -192,8 +196,12 @@ async function generateSuggestion(prompt: string): Promise<string> {
       },
     );
 
-    if (!response.ok) return "// AI suggestion unavailable";
-
+    // if (!response.ok) return "// AI suggestion unavailable";
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Gemini Suggestion Error:", errorText);
+      return "// AI suggestion unavailable";
+    }
     const data = await response.json();
     let suggestion = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 

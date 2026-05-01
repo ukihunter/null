@@ -161,8 +161,11 @@ const CodeEditor = ({
             ],
           };
         },
-        freeInlineCompletions: (completions: any) => {
-          console.log("freeInlineCompletions called");
+        // freeInlineCompletions: (completions: any) => {
+        //   console.log("freeInlineCompletions called");
+        // },
+        disposeInlineCompletions: (completions: any) => {
+          console.log("disposeInlineCompletions called");
         },
       };
     },
@@ -557,17 +560,12 @@ const CodeEditor = ({
         }
       }
 
-      // Trigger new suggestion if appropriate (simplified)
+      // Automatic suggestion trigger on cursor move removed to prevent rate limiting.
+      // Suggestions are now only triggered manually via keybind (Ctrl+Space).
       if (!currentSuggestionRef.current && !suggestionLoading) {
-        // Clear any existing timeout
         if (suggestionTimeoutRef.current) {
           clearTimeout(suggestionTimeoutRef.current);
         }
-
-        // Trigger suggestion with a delay
-        suggestionTimeoutRef.current = setTimeout(() => {
-          onTriggerSuggestion("completion", editor);
-        }, 300);
       }
     });
 
@@ -612,15 +610,8 @@ const CodeEditor = ({
           change.text === ":" || // Object property
           change.text === ";" // Statement end
         ) {
-          setTimeout(() => {
-            if (
-              editorRef.current &&
-              !currentSuggestionRef.current &&
-              !suggestionLoading
-            ) {
-              onTriggerSuggestion("completion", editor);
-            }
-          }, 100); // Small delay to let the change settle
+          // Automatic context-aware trigger removed to prevent rate limiting.
+          // User must manually trigger suggestion.
         }
       }
     });
