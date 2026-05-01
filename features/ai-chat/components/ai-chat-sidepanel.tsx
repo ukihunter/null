@@ -461,79 +461,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     setAttachments((prev) => prev.filter((file) => file.id !== id));
   };
 
-  // Enhanced paste detection
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const pastedText = e.clipboardData.getData("text");
 
-    if (pastedText.length > 50 && pastedText.includes("\n")) {
-      const lines = pastedText.split("\n");
-      const hasImports = lines.some(
-        (line) =>
-          line.trim().startsWith("import ") || line.trim().startsWith("from "),
-      );
-      const hasFunctions = lines.some(
-        (line) =>
-          line.includes("function ") ||
-          line.includes("def ") ||
-          line.includes("=>") ||
-          line.includes("class ") ||
-          line.includes("interface "),
-      );
-      const hasCodeStructure = lines.some(
-        (line) =>
-          line.includes("{") ||
-          line.includes("}") ||
-          line.includes("class ") ||
-          line.includes("SELECT") ||
-          line.includes("CREATE"),
-      );
-
-      if (hasImports || hasFunctions || hasCodeStructure) {
-        e.preventDefault();
-
-        let suggestedName = "pasted-code.txt";
-        if (hasImports && pastedText.includes("React")) {
-          suggestedName =
-            pastedText.includes("tsx") || pastedText.includes("interface")
-              ? "component.tsx"
-              : "component.jsx";
-        } else if (
-          pastedText.includes("def ") ||
-          pastedText.includes("import ")
-        ) {
-          suggestedName = "script.py";
-        } else if (
-          pastedText.includes("function ") ||
-          pastedText.includes("=>")
-        ) {
-          suggestedName = pastedText.includes("interface")
-            ? "script.ts"
-            : "script.js";
-        } else if (
-          pastedText.includes("SELECT") ||
-          pastedText.includes("CREATE")
-        ) {
-          suggestedName = "query.sql";
-        } else if (
-          pastedText.includes("<!DOCTYPE") ||
-          pastedText.includes("<html")
-        ) {
-          suggestedName = "page.html";
-        } else if (pastedText.includes("public class")) {
-          suggestedName = "Main.java";
-        }
-
-        const fileName = prompt(
-          `Detected code content! Enter filename:`,
-          suggestedName,
-        );
-        if (fileName) {
-          addFileAttachment(fileName, pastedText);
-          return;
-        }
-      }
-    }
-  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -676,21 +604,23 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
       })),
     };
 
+    const instruction = "IMPORTANT: Reply in the programming language of the attached files or the active file context (e.g. if the file is an HTML file, provide an HTML response, not React/JSX), unless the user explicitly requests a different language.";
+
     switch (mode) {
       case "review":
         return `Please review this code and provide detailed suggestions for improvement, including performance, security, and best practices:\n\n**Context:** ${JSON.stringify(
           baseContext,
-        )}\n\n**Request:** ${content}`;
+        )}\n\n**Request:** ${content}\n\n${instruction}`;
       case "fix":
         return `Please help fix issues in this code, including bugs, errors, and potential problems:\n\n**Context:** ${JSON.stringify(
           baseContext,
-        )}\n\n**Problem:** ${content}`;
+        )}\n\n**Problem:** ${content}\n\n${instruction}`;
       case "optimize":
         return `Please analyze this code for performance optimizations and suggest improvements:\n\n**Context:** ${JSON.stringify(
           baseContext,
-        )}\n\n**Code to optimize:** ${content}`;
+        )}\n\n**Code to optimize:** ${content}\n\n${instruction}`;
       default:
-        return content;
+        return `**Context:** ${JSON.stringify(baseContext)}\n\n**Request:** ${content}\n\n${instruction}`;
     }
   };
 
@@ -1493,7 +1423,6 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                   }
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onPaste={handlePaste}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                       handleSendMessage(e as unknown as React.FormEvent);
