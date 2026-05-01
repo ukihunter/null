@@ -17,7 +17,6 @@ export function useWebRTC(
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   const [callMembers, setCallMembers] = useState<Record<string, { name: string; mode: "voice" | "video" }>>({});
   
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
@@ -46,7 +45,10 @@ export function useWebRTC(
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:global.stun.twilio.com:3478" }
+        { urls: "stun:global.stun.twilio.com:3478" },
+        { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+        { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+        { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
       ] 
     });
     
@@ -87,7 +89,6 @@ export function useWebRTC(
       cleanupCall();
       const stream = await getMedia(mode);
       localStreamRef.current = stream;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
     } catch {
       toast.error("Please allow microphone/camera permissions.");
       return;
@@ -151,7 +152,6 @@ export function useWebRTC(
         if (!localStreamRef.current) {
           const stream = await getMedia(data.mode);
           localStreamRef.current = stream;
-          if (localVideoRef.current) localVideoRef.current.srcObject = stream;
           setCallMode(data.mode);
           
           const caller = activeUsers.find((u) => u.id === data.from);
@@ -320,7 +320,6 @@ export function useWebRTC(
     isMuted,
     remoteStreams,
     callMembers,
-    localVideoRef,
     localStreamRef,
     startCall,
     endCall,

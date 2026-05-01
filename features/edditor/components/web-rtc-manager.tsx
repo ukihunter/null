@@ -8,7 +8,7 @@ interface WebRTCManagerProps {
   callElapsedSec: number;
   isMuted: boolean;
   remoteStreams: Record<string, MediaStream>;
-  localVideoRef: React.RefObject<HTMLVideoElement | null>;
+  localStreamRef: React.RefObject<MediaStream | null>;
   endCall: () => void;
   toggleMute: () => void;
 }
@@ -19,7 +19,7 @@ export function WebRTCManager({
   callElapsedSec,
   isMuted,
   remoteStreams,
-  localVideoRef,
+  localStreamRef,
   endCall,
   toggleMute,
 }: WebRTCManagerProps) {
@@ -153,11 +153,15 @@ export function WebRTCManager({
                   style={{ gridTemplateColumns: Object.keys(remoteStreams).length > 0 ? "1fr 1fr" : "1fr" }}
                 >
                   <video
-                    ref={localVideoRef}
                     autoPlay
                     muted
                     playsInline
                     className="h-full w-full rounded object-cover transform scale-x-[-1]"
+                    ref={(el) => {
+                      if (el && localStreamRef.current && (el as any).srcObject !== localStreamRef.current) {
+                        (el as any).srcObject = localStreamRef.current;
+                      }
+                    }}
                   />
                   {Object.entries(remoteStreams).map(([userId, stream]) => (
                     <MediaVideo key={userId} stream={stream} className="h-full w-full rounded object-cover" />

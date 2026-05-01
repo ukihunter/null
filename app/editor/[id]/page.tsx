@@ -690,7 +690,7 @@ const Page = () => {
         callElapsedSec={webrtc.callElapsedSec}
         isMuted={webrtc.isMuted}
         remoteStreams={webrtc.remoteStreams}
-        localVideoRef={webrtc.localVideoRef}
+        localStreamRef={webrtc.localStreamRef}
         endCall={webrtc.endCall}
         toggleMute={webrtc.toggleMute}
       />
