@@ -49,9 +49,11 @@ export function useWebRTC(
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
         { urls: "stun:global.stun.twilio.com:3478" },
-        { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
-        { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
-        { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
+        // NOTE TO USER: If the call still fails, it means your network has a strict Symmetric NAT.
+        // Public free TURN servers are often dead or rate-limited. 
+        // Go to https://www.metered.ca/turn-server, create a free account, and paste your TURN credentials below:
+        { urls: "turn:numb.viagenie.ca", username: "webrtc@live.com", credential: "muazkh" },
+        { urls: "turn:numb.viagenie.ca:443?transport=tcp", username: "webrtc@live.com", credential: "muazkh" }
       ] 
     });
     
