@@ -1329,6 +1329,7 @@ const Page = () => {
         </ActivityBarProvider>
       </TooltipProvider>
     </SidebarProvider>
+    </>
   );
 };
 
