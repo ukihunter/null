@@ -801,6 +801,17 @@ export interface CollaborationPanelProps {
     handler: (data: T) => void,
   ) => () => void;
   triggerClientEvent?: (eventName: string, data: unknown) => boolean;
+  webrtc?: {
+    callMode: "none" | "voice" | "video";
+    callMembers: Record<string, { name: string; mode: "voice" | "video" }>;
+    callElapsedSec: number;
+    isMuted: boolean;
+    localStreamRef: React.MutableRefObject<MediaStream | null>;
+    startCall: (mode: "voice" | "video") => void;
+    endCall: () => void;
+    toggleMute: () => void;
+  };
+  hostId?: string | null;
 }
 
 export function CollaborationPanel({
@@ -815,40 +826,15 @@ export function CollaborationPanel({
   onLogActivity,
   bindClientEvent,
   triggerClientEvent,
+  webrtc,
+  hostId,
 }: CollaborationPanelProps) {
   const [input, setInput] = React.useState("");
   const [copied, setCopied] = React.useState(false);
-  const [callMode, setCallMode] = React.useState<"none" | "voice" | "video">(
-    "none",
-  );
-  const [callStartedAt, setCallStartedAt] = React.useState<number | null>(null);
-  const [callElapsedSec, setCallElapsedSec] = React.useState(0);
-  const [isMuted, setIsMuted] = React.useState(false);
   const [sending, setSending] = React.useState(false);
-  const [isVideoBoxMinimized, setIsVideoBoxMinimized] = React.useState(false);
-  const [videoBoxPosition, setVideoBoxPosition] = React.useState({
-    x: 0,
-    y: 0,
-  });
-  const [videoBoxPositionInitialized, setVideoBoxPositionInitialized] =
-    React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const localVideoRef = React.useRef<HTMLVideoElement>(null);
-  const localStreamRef = React.useRef<MediaStream | null>(null);
-  const peerConnectionsRef = React.useRef<Map<string, RTCPeerConnection>>(
-    new Map(),
-  );
-  const [remoteStreams, setRemoteStreams] = React.useState<
-    Record<string, MediaStream>
-  >({});
-  const [callMembers, setCallMembers] = React.useState<
-    Record<string, { name: string; mode: "voice" | "video" }>
-  >({});
-  const dragStateRef = React.useRef({
-    dragging: false,
-    offsetX: 0,
-    offsetY: 0,
-  });
+  
+  const isHost = currentUserId === hostId;
 
   // Auto-scroll chat to bottom
   React.useEffect(() => {
@@ -864,6 +850,11 @@ export function CollaborationPanel({
       ? `${window.location.origin}/editor/${sessionId}?collab=1`
       : "";
 
+  function formatTime(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
   const formatDuration = React.useCallback((totalSec: number) => {
     const sec = Math.max(0, Math.floor(totalSec));
     const h = Math.floor(sec / 3600);
@@ -872,455 +863,6 @@ export function CollaborationPanel({
     const two = (n: number) => String(n).padStart(2, "0");
     return h > 0 ? `${two(h)}:${two(m)}:${two(s)}` : `${two(m)}:${two(s)}`;
   }, []);
-
-  const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSend = async () => {
-    if (!input.trim() || sending) return;
-    setSending(true);
-    await sendMessage(input.trim());
-    setInput("");
-    setSending(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  function getInitials(name: string | null): string {
-    if (!name) return "?";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  }
-
-  function formatTime(iso: string): string {
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-
-  const getMedia = React.useCallback(async (mode: "voice" | "video") => {
-    const constraints =
-      mode === "video"
-        ? { audio: true, video: true }
-        : { audio: true, video: false };
-    return navigator.mediaDevices.getUserMedia(constraints);
-  }, []);
-
-  const cleanupCall = React.useCallback(() => {
-    peerConnectionsRef.current.forEach((pc) => pc.close());
-    peerConnectionsRef.current.clear();
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
-    }
-    setRemoteStreams({});
-    setIsMuted(false);
-    setCallStartedAt(null);
-    setCallElapsedSec(0);
-  }, []);
-
-  const createPeerConnection = React.useCallback(
-    (targetUserId: string, mode: "voice" | "video", stream: MediaStream) => {
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      });
-
-      stream.getTracks().forEach((track) => {
-        if (mode === "voice" && track.kind === "video") return;
-        pc.addTrack(track, stream);
-      });
-
-      pc.ontrack = (event) => {
-        const [incomingStream] = event.streams;
-        if (incomingStream) {
-          setRemoteStreams((prev) => ({
-            ...prev,
-            [targetUserId]: incomingStream,
-          }));
-        }
-      };
-
-      pc.onicecandidate = (event) => {
-        if (!event.candidate) return;
-        triggerClientEvent?.("client-webrtc-ice", {
-          to: targetUserId,
-          from: currentUserId,
-          candidate: event.candidate,
-        });
-      };
-
-      pc.onconnectionstatechange = () => {
-        if (
-          pc.connectionState === "failed" ||
-          pc.connectionState === "disconnected" ||
-          pc.connectionState === "closed"
-        ) {
-          peerConnectionsRef.current.delete(targetUserId);
-          setRemoteStreams((prev) => {
-            const { [targetUserId]: _removed, ...rest } = prev;
-            return rest;
-          });
-        }
-      };
-
-      peerConnectionsRef.current.set(targetUserId, pc);
-      return pc;
-    },
-    [currentUserId, triggerClientEvent],
-  );
-
-  const startCall = React.useCallback(
-    async (mode: "voice" | "video") => {
-      if (!isCollaborationActive) return;
-      try {
-        cleanupCall();
-        const stream = await getMedia(mode);
-        localStreamRef.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-      } catch {
-        alert("Please allow microphone/camera permissions.");
-        return;
-      }
-      setCallMode(mode);
-      const now = Date.now();
-      setCallStartedAt(now);
-      setCallElapsedSec(0);
-      // announce presence-in-call to others
-      triggerClientEvent?.("client-call-status", {
-        action: "join",
-        from: currentUserId,
-        name: activeUsers.find((u) => u.id === currentUserId)?.name ?? "You",
-        mode,
-      });
-      setCallMembers((prev) => ({
-        ...prev,
-        [currentUserId]: {
-          name: activeUsers.find((u) => u.id === currentUserId)?.name ?? "You",
-          mode,
-        },
-      }));
-      void onLogActivity?.(`${mode}_call_joined`);
-    },
-    [
-      cleanupCall,
-      getMedia,
-      isCollaborationActive,
-      onLogActivity,
-      triggerClientEvent,
-      currentUserId,
-      activeUsers,
-    ],
-  );
-
-  // Optional: allow invite links like `...?collab=1&call=voice|video` to auto-start a call.
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isCollaborationActive) return;
-    if (callMode !== "none") return;
-    const params = new URLSearchParams(window.location.search);
-    const call = params.get("call");
-    if (call === "voice" || call === "video") {
-      void startCall(call);
-    }
-  }, [callMode, isCollaborationActive, startCall]);
-
-  const endCall = React.useCallback(() => {
-    cleanupCall();
-    triggerClientEvent?.("client-webrtc-ended", { from: currentUserId });
-    triggerClientEvent?.("client-call-status", {
-      action: "leave",
-      from: currentUserId,
-    });
-    if (callMode === "voice") {
-      void onLogActivity?.("voice_call_left");
-    }
-    if (callMode === "video") {
-      void onLogActivity?.("video_call_left");
-    }
-    setCallMode("none");
-    setCallMembers({});
-  }, [callMode, cleanupCall, currentUserId, onLogActivity]);
-
-  // Call duration timer
-  React.useEffect(() => {
-    if (callMode === "none" || !callStartedAt) return;
-    const id = window.setInterval(() => {
-      setCallElapsedSec(Math.floor((Date.now() - callStartedAt) / 1000));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [callMode, callStartedAt]);
-
-  const toggleMute = React.useCallback(() => {
-    const stream = localStreamRef.current;
-    if (!stream) return;
-    const nextMuted = !isMuted;
-    stream.getAudioTracks().forEach((t) => {
-      t.enabled = !nextMuted;
-    });
-    setIsMuted(nextMuted);
-  }, [isMuted]);
-
-  const MediaAudio = React.useCallback(
-    ({ stream }: { stream: MediaStream }) => {
-      return (
-        <audio
-          autoPlay
-          playsInline
-          ref={(el) => {
-            if (!el) return;
-            if ((el as any).srcObject !== stream) {
-              (el as any).srcObject = stream;
-              void el.play().catch(() => {});
-            }
-          }}
-        />
-      );
-    },
-    [],
-  );
-
-  const MediaVideo = React.useCallback(
-    ({
-      stream,
-      muted,
-      className,
-    }: {
-      stream: MediaStream;
-      muted?: boolean;
-      className?: string;
-    }) => {
-      return (
-        <video
-          autoPlay
-          playsInline
-          muted={!!muted}
-          className={className}
-          ref={(el) => {
-            if (!el) return;
-            if ((el as any).srcObject !== stream) {
-              (el as any).srcObject = stream;
-              void el.play().catch(() => {});
-            }
-          }}
-        />
-      );
-    },
-    [],
-  );
-
-  React.useEffect(() => {
-    if (!isCollaborationActive) {
-      endCall();
-    }
-  }, [isCollaborationActive, endCall]);
-
-  React.useEffect(() => {
-    if (!isCollaborationActive || !currentUserId || !bindClientEvent) return;
-
-    const offCallStatus = bindClientEvent<{
-      action: "join" | "leave";
-      from: string;
-      name?: string;
-      mode?: "voice" | "video";
-    }>("client-call-status", (data) => {
-      if (!data?.from || data.from === currentUserId) return;
-      if (data.action === "leave") {
-        setCallMembers((prev) => {
-          const { [data.from]: _removed, ...rest } = prev;
-          return rest;
-        });
-        return;
-      }
-      if (data.action === "join" && data.name && data.mode) {
-        setCallMembers((prev) => ({
-          ...prev,
-          [data.from]: { name: data.name!, mode: data.mode! },
-        }));
-      }
-    });
-
-    const offOffer = bindClientEvent<{
-      to: string;
-      from: string;
-      sdp: RTCSessionDescriptionInit;
-      mode: "voice" | "video";
-    }>("client-webrtc-offer", async (data) => {
-      if (data.to !== currentUserId || data.from === currentUserId) return;
-      if (!localStreamRef.current) {
-        const stream = await getMedia(data.mode);
-        localStreamRef.current = stream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        setCallMode(data.mode);
-        setCallMembers((prev) => ({
-          ...prev,
-          [currentUserId]: {
-            name:
-              activeUsers.find((u) => u.id === currentUserId)?.name ?? "You",
-            mode: data.mode,
-          },
-          [data.from]: {
-            name: activeUsers.find((u) => u.id === data.from)?.name ?? "User",
-            mode: data.mode,
-          },
-        }));
-      }
-
-      const pc = createPeerConnection(
-        data.from,
-        data.mode,
-        localStreamRef.current!,
-      );
-      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      triggerClientEvent?.("client-webrtc-answer", {
-        to: data.from,
-        from: currentUserId,
-        sdp: answer,
-      });
-    });
-
-    const offAnswer = bindClientEvent<{
-      to: string;
-      from: string;
-      sdp: RTCSessionDescriptionInit;
-    }>("client-webrtc-answer", async (data) => {
-      if (data.to !== currentUserId) return;
-      const pc = peerConnectionsRef.current.get(data.from);
-      if (!pc) return;
-      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    });
-
-    const offIce = bindClientEvent<{
-      to: string;
-      from: string;
-      candidate: RTCIceCandidateInit;
-    }>("client-webrtc-ice", async (data) => {
-      if (data.to !== currentUserId) return;
-      const pc = peerConnectionsRef.current.get(data.from);
-      if (!pc) return;
-      await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-    });
-
-    const offEnded = bindClientEvent<{ from: string }>(
-      "client-webrtc-ended",
-      () => {
-        cleanupCall();
-        setCallMode("none");
-        setCallMembers({});
-      },
-    );
-
-    return () => {
-      offCallStatus();
-      offOffer();
-      offAnswer();
-      offIce();
-      offEnded();
-    };
-  }, [
-    bindClientEvent,
-    cleanupCall,
-    createPeerConnection,
-    currentUserId,
-    getMedia,
-    isCollaborationActive,
-    triggerClientEvent,
-    activeUsers,
-  ]);
-
-  React.useEffect(() => {
-    if (!isCollaborationActive || callMode === "none" || !localStreamRef.current) {
-      return;
-    }
-
-    activeUsers
-      .filter((u) => u.id !== currentUserId)
-      .forEach(async (user) => {
-        if (peerConnectionsRef.current.has(user.id)) return;
-        const pc = createPeerConnection(user.id, callMode, localStreamRef.current!);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        triggerClientEvent?.("client-webrtc-offer", {
-          to: user.id,
-          from: currentUserId,
-          sdp: offer,
-          mode: callMode,
-        });
-      });
-  }, [
-    activeUsers,
-    callMode,
-    createPeerConnection,
-    currentUserId,
-    isCollaborationActive,
-    triggerClientEvent,
-  ]);
-
-  React.useEffect(() => {
-    // Ensure local stream attaches even if the <video> mounts later (floating box).
-    if (localVideoRef.current && localStreamRef.current) {
-      localVideoRef.current.srcObject = localStreamRef.current;
-    }
-  }, [callMode]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (callMode !== "video" || videoBoxPositionInitialized) return;
-
-    setVideoBoxPosition({
-      x: Math.max(16, window.innerWidth - 304),
-      y: Math.max(16, window.innerHeight - 220),
-    });
-    setVideoBoxPositionInitialized(true);
-  }, [callMode, videoBoxPositionInitialized]);
-
-  const handleVideoBoxMouseMove = React.useCallback((event: MouseEvent) => {
-    if (!dragStateRef.current.dragging) return;
-
-    const nextX = Math.max(8, event.clientX - dragStateRef.current.offsetX);
-    const nextY = Math.max(8, event.clientY - dragStateRef.current.offsetY);
-    setVideoBoxPosition({ x: nextX, y: nextY });
-  }, []);
-
-  const stopVideoBoxDragging = React.useCallback(() => {
-    dragStateRef.current.dragging = false;
-    window.removeEventListener("mousemove", handleVideoBoxMouseMove);
-    window.removeEventListener("mouseup", stopVideoBoxDragging);
-  }, [handleVideoBoxMouseMove]);
-
-  const startVideoBoxDragging = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      dragStateRef.current.dragging = true;
-      dragStateRef.current.offsetX = event.clientX - videoBoxPosition.x;
-      dragStateRef.current.offsetY = event.clientY - videoBoxPosition.y;
-
-      window.addEventListener("mousemove", handleVideoBoxMouseMove);
-      window.addEventListener("mouseup", stopVideoBoxDragging);
-    },
-    [handleVideoBoxMouseMove, stopVideoBoxDragging, videoBoxPosition.x, videoBoxPosition.y],
-  );
-
-  React.useEffect(() => {
-    return () => {
-      window.removeEventListener("mousemove", handleVideoBoxMouseMove);
-      window.removeEventListener("mouseup", stopVideoBoxDragging);
-      cleanupCall();
-    };
-  }, [cleanupCall, handleVideoBoxMouseMove, stopVideoBoxDragging]);
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
@@ -1350,10 +892,15 @@ export function CollaborationPanel({
           size="sm"
           variant={isCollaborationActive ? "destructive" : "default"}
           className="w-full h-7 text-xs mt-2"
-          onClick={onToggleCollaboration}
+          onClick={() => {
+            if (isCollaborationActive && isHost && triggerClientEvent) {
+              triggerClientEvent("client-session-ended", { from: currentUserId });
+            }
+            onToggleCollaboration();
+          }}
         >
           {isCollaborationActive
-            ? "Stop Collaboration"
+            ? isHost ? "End Collaboration Session" : "Leave Session"
             : "Start Collaboration Session"}
         </Button>
       </div>
@@ -1431,17 +978,18 @@ export function CollaborationPanel({
           {isCollaborationActive && (
             <>
               {/* Call Participants */}
+              {webrtc && (
               <div>
                 <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
-                  In Call ({callMode === "none" ? 0 : Object.keys(callMembers).length})
+                  In Call ({webrtc.callMode === "none" ? 0 : Object.keys(webrtc.callMembers).length})
                 </p>
-                {callMode === "none" ? (
+                {webrtc.callMode === "none" ? (
                   <p className="text-xs text-muted-foreground">
                     Not in a call
                   </p>
                 ) : (
                   <div className="space-y-1">
-                    {Object.entries(callMembers).map(([id, info]) => (
+                    {Object.entries(webrtc.callMembers).map(([id, info]) => (
                       <div key={id} className="flex items-center justify-between">
                         <span className="text-xs truncate max-w-[160px]">
                           {id === currentUserId ? `${info.name} (you)` : info.name}
@@ -1454,24 +1002,26 @@ export function CollaborationPanel({
                   </div>
                 )}
               </div>
+              )}
 
               <Separator />
 
               {/* Voice Call */}
+              {webrtc && (
               <div>
                 <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
                   Voice Call
                 </p>
                 <Button
                   size="sm"
-                  variant={callMode === "voice" ? "destructive" : "outline"}
+                  variant={webrtc.callMode === "voice" ? "destructive" : "outline"}
                   className="w-full h-7 text-xs gap-1.5"
-                  disabled={callMode === "video"}
+                  disabled={webrtc.callMode === "video"}
                   onClick={() =>
-                    callMode === "voice" ? endCall() : startCall("voice")
+                    webrtc.callMode === "voice" ? webrtc.endCall() : webrtc.startCall("voice")
                   }
                 >
-                  {callMode === "voice" ? (
+                  {webrtc.callMode === "voice" ? (
                     <>
                       <PhoneOff className="h-3.5 w-3.5" /> Leave Voice Call
                     </>
@@ -1481,20 +1031,20 @@ export function CollaborationPanel({
                     </>
                   )}
                 </Button>
-                {callMode === "voice" && (
+                {webrtc.callMode === "voice" && (
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-[11px] text-muted-foreground">
-                      {formatDuration(callElapsedSec)}
+                      {formatDuration(webrtc.callElapsedSec)}
                     </span>
                     <Button
                       size="sm"
-                      variant={isMuted ? "destructive" : "outline"}
+                      variant={webrtc.isMuted ? "destructive" : "outline"}
                       className="h-7 text-xs gap-1.5"
-                      onClick={toggleMute}
-                      disabled={!localStreamRef.current}
-                      title={isMuted ? "Unmute" : "Mute"}
+                      onClick={webrtc.toggleMute}
+                      disabled={!webrtc.localStreamRef.current}
+                      title={webrtc.isMuted ? "Unmute" : "Mute"}
                     >
-                      {isMuted ? (
+                      {webrtc.isMuted ? (
                         <>
                           <MicOff className="h-3.5 w-3.5" /> Muted
                         </>
@@ -1507,24 +1057,26 @@ export function CollaborationPanel({
                   </div>
                 )}
               </div>
+              )}
 
               <Separator />
 
               {/* Video Call */}
+              {webrtc && (
               <div>
                 <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
                   Video Call
                 </p>
                 <Button
                   size="sm"
-                  variant={callMode === "video" ? "destructive" : "outline"}
+                  variant={webrtc.callMode === "video" ? "destructive" : "outline"}
                   className="w-full h-7 text-xs gap-1.5"
-                  disabled={callMode === "voice"}
+                  disabled={webrtc.callMode === "voice"}
                   onClick={() =>
-                    callMode === "video" ? endCall() : startCall("video")
+                    webrtc.callMode === "video" ? webrtc.endCall() : webrtc.startCall("video")
                   }
                 >
-                  {callMode === "video" ? (
+                  {webrtc.callMode === "video" ? (
                     <>
                       <VideoOff className="h-3.5 w-3.5" /> Leave Video Call
                     </>
@@ -1535,6 +1087,7 @@ export function CollaborationPanel({
                   )}
                 </Button>
               </div>
+              )}
 
               <Separator />
             </>
@@ -1611,108 +1164,6 @@ export function CollaborationPanel({
         </div>
       )}
 
-      {/* Remote audio for voice/video calls */}
-      {callMode !== "none" &&
-        Object.entries(remoteStreams).map(([userId, stream]) => (
-          <div key={userId} className="hidden">
-            <MediaAudio stream={stream} />
-          </div>
-        ))}
-
-      {/* Floating mini video box */}
-      {isCollaborationActive && callMode === "video" && (
-        <div
-          className="fixed z-50 w-72 rounded-lg border bg-background shadow-xl"
-          style={{ left: videoBoxPosition.x, top: videoBoxPosition.y }}
-        >
-          <div
-            className="flex items-center justify-between border-b px-3 py-2 cursor-move select-none"
-            onMouseDown={startVideoBoxDragging}
-          >
-            <p className="text-xs font-semibold flex items-center gap-1.5">
-              <GripHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-              Video Call Active
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6"
-                onClick={() => setIsVideoBoxMinimized((prev) => !prev)}
-                title={isVideoBoxMinimized ? "Restore" : "Minimize"}
-              >
-                {isVideoBoxMinimized ? (
-                  <Maximize2 className="h-3.5 w-3.5" />
-                ) : (
-                  <Minimize2 className="h-3.5 w-3.5" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {!isVideoBoxMinimized && (
-            <div className="p-0">
-              <div className="h-44 w-full bg-black rounded-b-lg overflow-hidden">
-                <div
-                  className="grid h-full w-full gap-1 bg-black p-1"
-                  style={{
-                    gridTemplateColumns:
-                      Object.keys(remoteStreams).length > 0 ? "1fr 1fr" : "1fr",
-                  }}
-                >
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="h-full w-full rounded object-cover"
-                  />
-                  {Object.entries(remoteStreams).map(([userId, stream]) => (
-                    <MediaVideo
-                      key={userId}
-                      stream={stream}
-                      className="h-full w-full rounded object-cover"
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="p-2">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-[11px] text-muted-foreground">
-                    {formatDuration(callElapsedSec)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant={isMuted ? "destructive" : "outline"}
-                    className="h-7 text-xs gap-1.5"
-                    onClick={toggleMute}
-                    disabled={!localStreamRef.current}
-                    title={isMuted ? "Unmute" : "Mute"}
-                  >
-                    {isMuted ? (
-                      <>
-                        <MicOff className="h-3.5 w-3.5" /> Muted
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="h-3.5 w-3.5" /> Mute
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="h-7 text-xs w-full"
-                  onClick={endCall}
-                >
-                  End Video Call
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

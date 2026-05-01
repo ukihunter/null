@@ -7,6 +7,7 @@ import { getEdditorById, saveUpdatedCode } from "../actions";
 interface UseEditorData {
   id: string;
   title?: string;
+  userId?: string | null;
   [key: string]: unknown;
 }
 

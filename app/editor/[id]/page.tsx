@@ -77,11 +77,14 @@ import {
 import ToggelAI from "@/features/edditor/components/toggel-ai";
 import { useAISuggestion } from "@/features/ai-chat/hooks/useAiSuggesion";
 import { useCollaboration } from "@/features/edditor/hook/useCollaboration";
+import { useWebRTC } from "@/features/edditor/hook/useWebRTC";
+import { WebRTCManager } from "@/features/edditor/components/web-rtc-manager";
 import { useFileEditing } from "@/features/edditor/hook/useFileEditing";
 import { FileEditingIndicator } from "@/features/edditor/components/file-editing-indicator";
 import { useSession } from "next-auth/react";
 import UserButton from "@/features/dashboard/components/sidebar-user-button";
 import { ThemeToggle } from "@/components/ui/toggle-theme";
+import { useRouter } from "next/navigation";
 
 //import { editor } from "monaco-editor";
 //import { error } from "console";
@@ -97,6 +100,16 @@ const Page = () => {
   const aiSuggestion = useAISuggestion();
 
   const collab = useCollaboration(id ?? "");
+  
+  const webrtc = useWebRTC(
+    collab.currentUserId,
+    collab.activeUsers,
+    collab.isCollaborationActive,
+    collab.triggerClientEvent,
+    collab.bindClientEvent,
+    collab.logActivity
+  );
+
   const fileEditing = useFileEditing(
     id ?? "",
     session?.user?.id ?? "",
@@ -105,6 +118,18 @@ const Page = () => {
     collab.isCollaborationActive,
   );
   const broadcastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
+
+  // Listen for session ended by host
+  useEffect(() => {
+    const offEnded = collab.bindClientEvent("client-session-ended", () => {
+      if (editorData?.userId !== session?.user?.id) {
+        toast.error("The host has ended the collaboration session.");
+        router.push("/dashboard");
+      }
+    });
+    return () => offEnded();
+  }, [collab, editorData?.userId, session?.user?.id, router]);
 
   const {
     activeFileId,
@@ -658,7 +683,18 @@ const Page = () => {
   }
 
   return (
-    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+    <>
+      <WebRTCManager
+        callMode={webrtc.callMode}
+        callStartedAt={webrtc.callStartedAt}
+        callElapsedSec={webrtc.callElapsedSec}
+        isMuted={webrtc.isMuted}
+        remoteStreams={webrtc.remoteStreams}
+        localVideoRef={webrtc.localVideoRef}
+        endCall={webrtc.endCall}
+        toggleMute={webrtc.toggleMute}
+      />
+      <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <TooltipProvider>
         <ActivityBarProvider
           defaultView="explorer"
@@ -758,6 +794,17 @@ const Page = () => {
                     collab.startCollaboration();
                   }
                 }}
+                webrtc={{
+                  callMode: webrtc.callMode,
+                  callMembers: webrtc.callMembers,
+                  callElapsedSec: webrtc.callElapsedSec,
+                  isMuted: webrtc.isMuted,
+                  localStreamRef: webrtc.localStreamRef,
+                  startCall: webrtc.startCall,
+                  endCall: webrtc.endCall,
+                  toggleMute: webrtc.toggleMute,
+                }}
+                hostId={editorData?.userId}
               />
             )}
             {sidebarOpen && activeView === "account" && <AccountPanel />}

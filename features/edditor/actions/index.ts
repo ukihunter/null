@@ -15,6 +15,7 @@ export const getEdditorById = async (id: string) => {
           select: { content: true },
         },
         id: true,
+        userId: true,
       },
     });
     return editor;
