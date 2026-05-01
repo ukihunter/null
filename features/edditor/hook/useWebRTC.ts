@@ -20,6 +20,7 @@ export function useWebRTC(
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const pendingCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   const getMedia = useCallback(async (mode: "voice" | "video") => {
     const constraints = mode === "video" ? { audio: true, video: true } : { audio: true, video: false };
@@ -37,6 +38,7 @@ export function useWebRTC(
     setIsMuted(false);
     setCallStartedAt(null);
     setCallElapsedSec(0);
+    pendingCandidatesRef.current.clear();
   }, []);
 
   const createPeerConnection = useCallback((targetUserId: string, mode: "voice" | "video", stream: MediaStream) => {
@@ -163,6 +165,16 @@ export function useWebRTC(
 
         const pc = createPeerConnection(data.from, data.mode, localStreamRef.current!);
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+
+        // Flush any buffered candidates
+        const pending = pendingCandidatesRef.current.get(data.from);
+        if (pending) {
+          for (const candidate of pending) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error("ICE error", e));
+          }
+          pendingCandidatesRef.current.delete(data.from);
+        }
+
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         triggerClientEvent("client-webrtc-answer", { to: data.from, from: currentUserId, sdp: answer });
@@ -230,6 +242,15 @@ export function useWebRTC(
         const pc = peerConnectionsRef.current.get(data.from);
         if (!pc) return;
         await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+
+        // Flush any buffered candidates
+        const pending = pendingCandidatesRef.current.get(data.from);
+        if (pending) {
+          for (const candidate of pending) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error("ICE error", e));
+          }
+          pendingCandidatesRef.current.delete(data.from);
+        }
       }
     );
 
@@ -238,8 +259,15 @@ export function useWebRTC(
       async (data) => {
         if (data.to !== currentUserId) return;
         const pc = peerConnectionsRef.current.get(data.from);
-        if (!pc) return;
-        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        
+        if (pc && pc.remoteDescription) {
+          await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.error("ICE error", e));
+        } else {
+          // Buffer candidate if PC is not ready or remoteDescription is not set
+          const pending = pendingCandidatesRef.current.get(data.from) || [];
+          pending.push(data.candidate);
+          pendingCandidatesRef.current.set(data.from, pending);
+        }
       }
     );
 
