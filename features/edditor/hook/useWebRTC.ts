@@ -48,12 +48,27 @@ export function useWebRTC(
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:global.stun.twilio.com:3478" },
-        // NOTE TO USER: If the call still fails, it means your network has a strict Symmetric NAT.
-        // Public free TURN servers are often dead or rate-limited. 
-        // Go to https://www.metered.ca/turn-server, create a free account, and paste your TURN credentials below:
-        { urls: "turn:numb.viagenie.ca", username: "webrtc@live.com", credential: "muazkh" },
-        { urls: "turn:numb.viagenie.ca:443?transport=tcp", username: "webrtc@live.com", credential: "muazkh" }
+        { urls: "stun:stun.relay.metered.ca:80" },
+        { 
+          urls: "turn:global.relay.metered.ca:80", 
+          username: "6fbb92f93ba62dc7c5f46dba", 
+          credential: "/5SQTbl5vFNYCLiZ" 
+        },
+        { 
+          urls: "turn:global.relay.metered.ca:80?transport=tcp", 
+          username: "6fbb92f93ba62dc7c5f46dba", 
+          credential: "/5SQTbl5vFNYCLiZ" 
+        },
+        { 
+          urls: "turn:global.relay.metered.ca:443", 
+          username: "6fbb92f93ba62dc7c5f46dba", 
+          credential: "/5SQTbl5vFNYCLiZ" 
+        },
+        { 
+          urls: "turns:global.relay.metered.ca:443?transport=tcp", 
+          username: "6fbb92f93ba62dc7c5f46dba", 
+          credential: "/5SQTbl5vFNYCLiZ" 
+        }
       ] 
     });
     
