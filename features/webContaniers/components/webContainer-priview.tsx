@@ -122,6 +122,10 @@ const WebContainerPreview = ({
       
       const generation = ++setupGenerationRef.current;
       
+      const write = (data: string) => {
+        terminalRef.current?.writeToTerminal?.(data);
+      };
+
       try {
         // Wait for terminal to be ready (up to 5 seconds)
         let attempts = 0;
@@ -132,10 +136,6 @@ const WebContainerPreview = ({
         }
 
         setIsSetupInProgress(true);
-
-        const write = (data: string) => {
-          terminalRef.current?.writeToTerminal?.(data);
-        };
 
         write("\r\n[System] Preparing environment for new template...\r\n");
 
