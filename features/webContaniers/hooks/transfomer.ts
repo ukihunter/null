@@ -1,10 +1,4 @@
-interface TemplateItem {
-  filename: string;
-  fileExtension: string;
-  content: string;
-  folderName?: string;
-  items?: TemplateItem[];
-}
+import { TemplateFolder, TemplateItem } from "@/features/edditor/lib/path-to-jason";
 
 interface WebContainerFile {
   file: {
@@ -23,21 +17,23 @@ type WebContainerFileSystem = Record<
   WebContainerFile | WebContainerDirectory
 >;
 
-export function transformToWebContainerFormat(template: {
-  folderName: string;
-  items: TemplateItem[];
-}): WebContainerFileSystem {
+export function transformToWebContainerFormat(template: TemplateFolder): WebContainerFileSystem {
   function processItem(
     item: TemplateItem
   ): WebContainerFile | WebContainerDirectory {
-    if (item.folderName && item.items) {
+    if ("folderName" in item) {
       // This is a directory
       const directoryContents: WebContainerFileSystem = {};
 
       item.items.forEach((subItem) => {
-        const key = subItem.fileExtension
-          ? `${subItem.filename}.${subItem.fileExtension}`
-          : subItem.folderName!;
+        let key: string;
+        if ("folderName" in subItem) {
+          key = subItem.folderName;
+        } else {
+          key = subItem.fileExtension
+            ? `${subItem.filename}.${subItem.fileExtension}`
+            : subItem.filename;
+        }
         directoryContents[key] = processItem(subItem);
       });
 
@@ -57,9 +53,14 @@ export function transformToWebContainerFormat(template: {
   const result: WebContainerFileSystem = {};
 
   template.items.forEach((item) => {
-    const key = item.fileExtension
-      ? `${item.filename}.${item.fileExtension}`
-      : item.folderName!;
+    let key: string;
+    if ("folderName" in item) {
+      key = item.folderName;
+    } else {
+      key = item.fileExtension
+        ? `${item.filename}.${item.fileExtension}`
+        : item.filename;
+    }
     result[key] = processItem(item);
   });
 
