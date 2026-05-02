@@ -115,13 +115,13 @@ export default function Home() {
           className="relative mt-1 w-full max-w-6xl mx-auto"
         >
           <div className="relative rounded-3xl overflow-hidden border border-gray-200/50 dark:border-white/10 shadow-2xl bg-white/5 backdrop-blur-3xl">
-            <Image
-              src="/demo.gif"
-              alt="Null IDE Preview"
-              width={1200}
-              height={800}
+            <video
+              src="/demo.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
               className="w-full h-auto object-cover opacity-90"
-              unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-black via-transparent to-transparent opacity-60" />
           </div>
