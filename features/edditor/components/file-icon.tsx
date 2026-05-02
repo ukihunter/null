@@ -1,39 +1,35 @@
 import React from "react";
-import { 
-  VscFile, 
-  VscFolder, 
+import {
+  VscFile,
+  VscFolder,
   VscFolderOpened,
   VscJson,
   VscMarkdown,
   VscCode,
 } from "react-icons/vsc";
-import { 
-  SiJavascript, 
-  SiTypescript, 
-  SiReact, 
-  SiHtml5, 
-  SiCss, 
-  SiPython, 
-  SiRust, 
-  SiGo, 
-  SiPhp, 
+import {
+  SiJavascript,
+  SiTypescript,
+  SiReact,
+  SiHtml5,
+  SiCss,
+  SiPython,
+  SiRust,
+  SiGo,
+  SiPhp,
   SiRuby,
-  SiTailwindcss,
+  //SiTailwindcss,
   SiSass,
   SiDocker,
   SiYaml,
   SiSqlite,
-  SiPostgresql,
+  //SiPostgresql,
   SiPrisma,
-  SiAdobephotoshop,
-  SiAdobeillustrator,
+  //SiAdobephotoshop,
+  //SiAdobeillustrator,
 } from "react-icons/si";
 import { DiJava } from "react-icons/di";
-import { 
-  VscFileMedia, 
-  VscArchive, 
-  VscFilePdf,
-} from "react-icons/vsc";
+import { VscFileMedia, VscArchive, VscFilePdf } from "react-icons/vsc";
 
 interface FileIconProps {
   extension: string;
@@ -42,7 +38,12 @@ interface FileIconProps {
   isOpen?: boolean;
 }
 
-const FileIcon = ({ extension, className = "h-4 w-4", isFolder, isOpen }: FileIconProps) => {
+const FileIcon = ({
+  extension,
+  className = "h-4 w-4",
+  isFolder,
+  isOpen,
+}: FileIconProps) => {
   const ext = extension.toLowerCase();
 
   if (isFolder) {
