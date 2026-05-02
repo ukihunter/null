@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useCallback, act, use } from "react";
 
 import Editor, { Monaco } from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 import { TemplateFile } from "../lib/path-to-jason";
 import {
   configureMonaco,
@@ -35,6 +36,7 @@ interface CodeEditorProps {
   >;
   activeFileId?: string | null;
   readOnly?: boolean;
+  theme?: string;
 }
 
 const CodeEditor = ({
@@ -51,7 +53,10 @@ const CodeEditor = ({
   remoteCursors,
   activeFileId,
   readOnly = false,
+  theme: customTheme,
 }: CodeEditorProps) => {
+  const { resolvedTheme } = useTheme();
+  const editorTheme = customTheme || (resolvedTheme === "dark" ? "vs-dark" : "modern-light");
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const inlineCompletionProviderRef = useRef<any>(null);
@@ -804,6 +809,7 @@ const CodeEditor = ({
         }
         //@ts-ignore
         options={{ ...defaultEditorOptions, readOnly }}
+        theme={editorTheme}
       />
     </div>
   );

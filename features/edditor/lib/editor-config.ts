@@ -223,8 +223,23 @@ export const configureMonaco = (monaco: Monaco) => {
     },
   });
 
-  // Set the theme
-  monaco.editor.setTheme("modern-dark");
+  // Define a beautiful modern light theme
+  monaco.editor.defineTheme("modern-light", {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "comment", foreground: "008000", fontStyle: "italic" },
+      { token: "keyword", foreground: "0000FF", fontStyle: "bold" },
+      { token: "variable", foreground: "001080" },
+      { token: "string", foreground: "A31515" },
+    ],
+    colors: {
+      "editor.background": "#ffffff",
+      "editor.foreground": "#000000",
+      "editorLineNumber.foreground": "#237893",
+      "editor.lineHighlightBackground": "#f3f3f3",
+    },
+  });
 
   // Configure additional editor settings
   monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({

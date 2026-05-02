@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Search,
   Users,
@@ -27,24 +28,42 @@ import {
   WifiOff,
   Mic,
   MicOff,
+  LogOut,
+  User as UserIcon,
+  Settings as SettingsIcon,
+  Palette,
+  GitBranch,
+  MessageSquare,
 } from "lucide-react";
+import FileIcon from "./file-icon";
+
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useSession, signIn, signOut } from "next-auth/react";
+
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import TemplateNode from "./template-node";
 import { TemplateFile, TemplateFolder } from "../lib/path-to-jason";
 import type { CollabUser, ChatMessage } from "../hook/useCollaboration";
@@ -123,7 +142,7 @@ export function ExplorerPanel({
   };
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-background">
+    <div className="flex h-full w-64 flex-col border bg-bguki rounded-tr-lg rounded-br-lg mt-1">
       <div className="border-b p-3">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-xs font-semibold uppercase">Explorer</h2>
@@ -146,7 +165,7 @@ export function ExplorerPanel({
           </DropdownMenu>
         </div>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 ">
         <div className="p-2 space-y-1">
           {data && data.items && data.items.length > 0 ? (
             data.items.map((child, index) => (
@@ -384,7 +403,10 @@ export function SearchPanel({ data, onFileSelect }: SearchPanelProps) {
                 >
                   {/* FILE NAME */}
                   <div className="flex items-center gap-2">
-                    <File className="h-4 w-4" />
+                    <FileIcon
+                      extension={file.fileExtension}
+                      className="h-4 w-4"
+                    />
                     <span className="text-sm">
                       {file.filename}.{file.fileExtension}
                     </span>
@@ -430,9 +452,6 @@ export function SearchPanel({ data, onFileSelect }: SearchPanelProps) {
 //     </div>
 //   );
 // }
-
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useSession, signIn } from "next-auth/react";
 
 interface Props {
   templateData: any;
@@ -795,8 +814,11 @@ export interface CollaborationPanelProps {
   sendMessage: (content: string) => Promise<void>;
   isCollaborationActive: boolean;
   onToggleCollaboration: () => void;
-  onLogActivity?: (type: string, meta?: Record<string, string>) => Promise<void>;
-  bindClientEvent?: <T,>(
+  onLogActivity?: (
+    type: string,
+    meta?: Record<string, string>,
+  ) => Promise<void>;
+  bindClientEvent?: <T>(
     eventName: string,
     handler: (data: T) => void,
   ) => () => void;
@@ -835,7 +857,7 @@ export function CollaborationPanel({
   const [copied, setCopied] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  
+
   const isHost = currentUserId === hostId;
 
   // Auto-scroll chat to bottom
@@ -907,7 +929,9 @@ export function CollaborationPanel({
             Collaboration
           </h2>
           <Badge
-            variant={isConnected && isCollaborationActive ? "default" : "outline"}
+            variant={
+              isConnected && isCollaborationActive ? "default" : "outline"
+            }
             className="text-[10px] px-1.5 py-0 h-4"
           >
             {isConnected && isCollaborationActive ? (
@@ -928,7 +952,9 @@ export function CollaborationPanel({
           onClick={() => {
             if (isCollaborationActive) {
               if (isHost && triggerClientEvent) {
-                triggerClientEvent("client-session-ended", { from: currentUserId });
+                triggerClientEvent("client-session-ended", {
+                  from: currentUserId,
+                });
               }
               onToggleCollaboration();
               if (!isHost) {
@@ -940,7 +966,9 @@ export function CollaborationPanel({
           }}
         >
           {isCollaborationActive
-            ? isHost ? "End Collaboration Session" : "Leave Session"
+            ? isHost
+              ? "End Collaboration Session"
+              : "Leave Session"
             : "Start Collaboration Session"}
         </Button>
       </div>
@@ -1019,114 +1047,134 @@ export function CollaborationPanel({
             <>
               {/* Call Participants */}
               {webrtc && (
-              <div>
-                <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
-                  In Call ({webrtc.callMode === "none" ? 0 : Object.keys(webrtc.callMembers).length})
-                </p>
-                {webrtc.callMode === "none" ? (
-                  <p className="text-xs text-muted-foreground">
-                    Not in a call
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-2">
+                    In Call (
+                    {webrtc.callMode === "none"
+                      ? 0
+                      : Object.keys(webrtc.callMembers).length}
+                    )
                   </p>
-                ) : (
-                  <div className="space-y-1">
-                    {Object.entries(webrtc.callMembers).map(([id, info]) => (
-                      <div key={id} className="flex items-center justify-between">
-                        <span className="text-xs truncate max-w-[160px]">
-                          {id === currentUserId ? `${info.name} (you)` : info.name}
-                        </span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                          {info.mode}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  {webrtc.callMode === "none" ? (
+                    <p className="text-xs text-muted-foreground">
+                      Not in a call
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {Object.entries(webrtc.callMembers).map(([id, info]) => (
+                        <div
+                          key={id}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="text-xs truncate max-w-[160px]">
+                            {id === currentUserId
+                              ? `${info.name} (you)`
+                              : info.name}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-4"
+                          >
+                            {info.mode}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               <Separator />
 
               {/* Voice Call */}
               {webrtc && (
-              <div>
-                <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
-                  Voice Call
-                </p>
-                <Button
-                  size="sm"
-                  variant={webrtc.callMode === "voice" ? "destructive" : "outline"}
-                  className="w-full h-7 text-xs gap-1.5"
-                  disabled={webrtc.callMode === "video"}
-                  onClick={() =>
-                    webrtc.callMode === "voice" ? webrtc.endCall() : webrtc.startCall("voice")
-                  }
-                >
-                  {webrtc.callMode === "voice" ? (
-                    <>
-                      <PhoneOff className="h-3.5 w-3.5" /> Leave Voice Call
-                    </>
-                  ) : (
-                    <>
-                      <Phone className="h-3.5 w-3.5" /> Join Voice Call
-                    </>
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+                    Voice Call
+                  </p>
+                  <Button
+                    size="sm"
+                    variant={
+                      webrtc.callMode === "voice" ? "destructive" : "outline"
+                    }
+                    className="w-full h-7 text-xs gap-1.5"
+                    disabled={webrtc.callMode === "video"}
+                    onClick={() =>
+                      webrtc.callMode === "voice"
+                        ? webrtc.endCall()
+                        : webrtc.startCall("voice")
+                    }
+                  >
+                    {webrtc.callMode === "voice" ? (
+                      <>
+                        <PhoneOff className="h-3.5 w-3.5" /> Leave Voice Call
+                      </>
+                    ) : (
+                      <>
+                        <Phone className="h-3.5 w-3.5" /> Join Voice Call
+                      </>
+                    )}
+                  </Button>
+                  {webrtc.callMode === "voice" && (
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">
+                        {formatDuration(webrtc.callElapsedSec)}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={webrtc.isMuted ? "destructive" : "outline"}
+                        className="h-7 text-xs gap-1.5"
+                        onClick={webrtc.toggleMute}
+                        disabled={!webrtc.localStreamRef.current}
+                        title={webrtc.isMuted ? "Unmute" : "Mute"}
+                      >
+                        {webrtc.isMuted ? (
+                          <>
+                            <MicOff className="h-3.5 w-3.5" /> Muted
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="h-3.5 w-3.5" /> Mute
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   )}
-                </Button>
-                {webrtc.callMode === "voice" && (
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-muted-foreground">
-                      {formatDuration(webrtc.callElapsedSec)}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant={webrtc.isMuted ? "destructive" : "outline"}
-                      className="h-7 text-xs gap-1.5"
-                      onClick={webrtc.toggleMute}
-                      disabled={!webrtc.localStreamRef.current}
-                      title={webrtc.isMuted ? "Unmute" : "Mute"}
-                    >
-                      {webrtc.isMuted ? (
-                        <>
-                          <MicOff className="h-3.5 w-3.5" /> Muted
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="h-3.5 w-3.5" /> Mute
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
+                </div>
               )}
 
               <Separator />
 
               {/* Video Call */}
               {webrtc && (
-              <div>
-                <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
-                  Video Call
-                </p>
-                <Button
-                  size="sm"
-                  variant={webrtc.callMode === "video" ? "destructive" : "outline"}
-                  className="w-full h-7 text-xs gap-1.5"
-                  disabled={webrtc.callMode === "voice"}
-                  onClick={() =>
-                    webrtc.callMode === "video" ? webrtc.endCall() : webrtc.startCall("video")
-                  }
-                >
-                  {webrtc.callMode === "video" ? (
-                    <>
-                      <VideoOff className="h-3.5 w-3.5" /> Leave Video Call
-                    </>
-                  ) : (
-                    <>
-                      <Video className="h-3.5 w-3.5" /> Join Video Call
-                    </>
-                  )}
-                </Button>
-              </div>
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+                    Video Call
+                  </p>
+                  <Button
+                    size="sm"
+                    variant={
+                      webrtc.callMode === "video" ? "destructive" : "outline"
+                    }
+                    className="w-full h-7 text-xs gap-1.5"
+                    disabled={webrtc.callMode === "voice"}
+                    onClick={() =>
+                      webrtc.callMode === "video"
+                        ? webrtc.endCall()
+                        : webrtc.startCall("video")
+                    }
+                  >
+                    {webrtc.callMode === "video" ? (
+                      <>
+                        <VideoOff className="h-3.5 w-3.5" /> Leave Video Call
+                      </>
+                    ) : (
+                      <>
+                        <Video className="h-3.5 w-3.5" /> Join Video Call
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
 
               <Separator />
@@ -1203,39 +1251,80 @@ export function CollaborationPanel({
           </Button>
         </div>
       )}
-
     </div>
   );
 }
 
 export function AccountPanel() {
-  return (
-    <div className="flex h-full w-64 flex-col border-r bg-background">
-      <div className="border-b p-4">
-        <h2 className="text-sm font-semibold">ACCOUNT</h2>
-      </div>
-      <ScrollArea className="flex-1 p-4">
-        <p className="text-sm text-muted-foreground">
-          Sign in to sync settings and access features.
-        </p>
-      </ScrollArea>
-    </div>
-  );
-}
+  const { data: session } = useSession();
 
-export function SettingsPanel() {
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
       <div className="border-b p-4">
-        <h2 className="text-sm font-semibold">SETTINGS</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <UserIcon className="h-4 w-4" />
+          Account
+        </h2>
       </div>
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Editor Settings</p>
-          <p className="text-xs text-muted-foreground">
-            Configure your editor preferences
-          </p>
-        </div>
+      <ScrollArea className="flex-1 p-2">
+        {session ? (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm text-muted-foreground  truncate">
+                Current logged-in account
+              </p>
+            </div>
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border">
+              <Avatar className="h-10 w-10 border-2 border-primary/20">
+                <AvatarImage
+                  src={session.user?.image || ""}
+                  alt={session.user?.name || ""}
+                />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {session.user?.name?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {session.user?.name}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {session.user?.email}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase px-1">
+                Actions
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                onClick={() => signOut()}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <UserIcon className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Not signed in</p>
+              <p className="text-xs text-muted-foreground px-4">
+                Sign in to sync your projects and collaborate with others.
+              </p>
+            </div>
+            <Button size="sm" className="w-full" onClick={() => signIn()}>
+              Sign In
+            </Button>
+          </div>
+        )}
       </ScrollArea>
     </div>
   );

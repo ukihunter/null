@@ -71,7 +71,7 @@ import {
   ExtensionsPanel,
   CollaborationPanel,
   AccountPanel,
-  SettingsPanel,
+  // SettingsPanel,
   ExplorerPanel,
 } from "@/features/edditor/components/activity-panels";
 import ToggelAI from "@/features/edditor/components/toggel-ai";
@@ -100,14 +100,14 @@ const Page = () => {
   const aiSuggestion = useAISuggestion();
 
   const collab = useCollaboration(id ?? "");
-  
+
   const webrtc = useWebRTC(
     collab.currentUserId,
     collab.activeUsers,
     collab.isCollaborationActive,
     collab.triggerClientEvent,
     collab.bindClientEvent,
-    collab.logActivity
+    collab.logActivity,
   );
 
   const fileEditing = useFileEditing(
@@ -695,163 +695,161 @@ const Page = () => {
         toggleMute={webrtc.toggleMute}
       />
       <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-      <TooltipProvider>
-        <ActivityBarProvider
-          defaultView="explorer"
-          onViewChange={(view) => {
-            // Toggle: if clicking the same view, close sidebar
-            setActiveView((prev) => (prev === view ? "" : view));
-          }}
-        >
-          <div className="flex h-screen w-full">
-            <ActivityBar>
-              <ActivityBarItem
-                icon={<Files className="h-6 w-6" />}
-                label="Explorer"
-                view="explorer"
-              />
-              <ActivityBarItem
-                icon={<Search className="h-6 w-6" />}
-                label="Search"
-                view="search"
-              />
-              <ActivityBarItem
-                icon={<GitBranch className="h-6 w-6" />}
-                label="Source Control"
-                view="source-control"
-              />
-              {/* <ActivityBarItem
+        <TooltipProvider>
+          <ActivityBarProvider
+            defaultView="explorer"
+            onViewChange={(view) => {
+              // Toggle: if clicking the same view, close sidebar
+              setActiveView((prev) => (prev === view ? "" : view));
+            }}
+          >
+            <div className="flex h-screen w-full">
+              <ActivityBar>
+                <ActivityBarItem
+                  icon={<Files className="h-6 w-6" />}
+                  label="Explorer"
+                  view="explorer"
+                />
+                <ActivityBarItem
+                  icon={<Search className="h-6 w-6" />}
+                  label="Search"
+                  view="search"
+                />
+                <ActivityBarItem
+                  icon={<GitBranch className="h-6 w-6" />}
+                  label="Source Control"
+                  view="source-control"
+                />
+                {/* <ActivityBarItem
                 icon={<Play className="h-6 w-6" />}
                 label="Run and Debug"
                 view="debug"
               /> */}
-              {/* <ActivityBarItem
+                {/* <ActivityBarItem
                 icon={<Package className="h-6 w-6" />}
                 label="Extensions"
                 view="extensions"
               /> */}
-              <ActivityBarItem
-                icon={<Users className="h-6 w-6" />}
-                label="Collaboration"
-                view="collaboration"
-              />
-              <ActivityBarSeparator />
-              <ActivityBarSpacer />
-              <ActivityBarItem
-                icon={<User className="h-6 w-6" />}
-                label="Account"
-                view="account"
-              />
-              <ActivityBarItem
-                icon={<Settings className="h-6 w-6" />}
-                label="Settings"
-                view="settings"
-              />
-            </ActivityBar>
-            {sidebarOpen && activeView === "explorer" && (
-              <ExplorerPanel
-                data={templateData!}
-                onFileSelect={handleFileSelect}
-                selectedFile={activeFile}
-                onAddFile={wrappedHandleAddFile}
-                onAddFolder={wrappedHandleAddFolder}
-                onDeleteFile={wrappedHandleDeleteFile}
-                onDeleteFolder={wrappedHandleDeleteFolder}
-                onRenameFile={wrappedHandleRenameFile}
-                onRenameFolder={wrappedHandleRenameFolder}
-              />
-            )}
-            {sidebarOpen && activeView === "search" && (
-              <SearchPanel
-                data={templateData!}
-                onFileSelect={handleFileSelect}
-              />
-            )}
-            {sidebarOpen && activeView === "source-control" && (
-              <SourceControlPanel
-                templateData={commitTemplateData}
-                unsavedFiles={unsavedFilesForCommit}
-              />
-            )}
-            {/*  {sidebarOpen && activeView === "debug" && <DebugPanel />}*/}
-            {sidebarOpen && activeView === "extensions" && <ExtensionsPanel />}
-            {sidebarOpen && activeView === "collaboration" && (
-              <CollaborationPanel
-                sessionId={id ?? ""}
-                activeUsers={collab.activeUsers}
-                messages={collab.messages}
-                isConnected={collab.isConnected}
-                currentUserId={collab.currentUserId}
-                sendMessage={collab.sendMessage}
-                onLogActivity={collab.logActivity}
-                bindClientEvent={collab.bindClientEvent}
-                triggerClientEvent={collab.triggerClientEvent}
-                isCollaborationActive={collab.isCollaborationActive}
-                onToggleCollaboration={() => {
-                  if (collab.isCollaborationActive) {
-                    collab.stopCollaboration();
-                  } else {
-                    collab.startCollaboration();
-                  }
-                }}
-                webrtc={{
-                  callMode: webrtc.callMode,
-                  callMembers: webrtc.callMembers,
-                  callElapsedSec: webrtc.callElapsedSec,
-                  isMuted: webrtc.isMuted,
-                  localStreamRef: webrtc.localStreamRef,
-                  startCall: webrtc.startCall,
-                  endCall: webrtc.endCall,
-                  toggleMute: webrtc.toggleMute,
-                }}
-                hostId={editorData?.userId}
-                onLeaveSession={() => router.push("/dashboard")}
-              />
-            )}
-            {sidebarOpen && activeView === "account" && <AccountPanel />}
-            {sidebarOpen && activeView === "settings" && <SettingsPanel />}
-            <SidebarInset>
-              <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                <SidebarTrigger className="ml-1" />
-                <Separator orientation="vertical" className="mr-2 h-4" />
-                <div className="flex flex-1 items-center gap-2 ">
-                  <div className="flex flex-col flex-1">
-                    <h1 className="text-sm font-medium">
-                      {editorData?.title || "Null Edditor"}
-                    </h1>
-                    <p className="text-xs text-muted-foreground">
-                      {openFiles.length} File(s) Opened
-                      {hasUnsavedChanges && ". You have unsaved changes"}
-                    </p>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size={"sm"}
-                        variant={"outline"}
-                        onClick={() => handleSave()}
-                        disabled={!activeFile || !activeFile.hasUnsavedChanges}
-                      >
-                        <Save className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Save (CTRL+S)</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleSaveAll()}
-                        disabled={!hasUnsavedChanges}
-                      >
-                        <BookmarkPlus className="size-4" />
-                        All
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Save All (CTRL+SHIFT+S)</TooltipContent>
-                  </Tooltip>
-                  {/*    <Tooltip>
+                <ActivityBarItem
+                  icon={<Users className="h-6 w-6" />}
+                  label="Collaboration"
+                  view="collaboration"
+                />
+                <ActivityBarSeparator />
+                <ActivityBarSpacer />
+                <ActivityBarItem
+                  icon={<User className="h-6 w-6" />}
+                  label="Account"
+                  view="account"
+                />
+              </ActivityBar>
+              {sidebarOpen && activeView === "explorer" && (
+                <ExplorerPanel
+                  data={templateData!}
+                  onFileSelect={handleFileSelect}
+                  selectedFile={activeFile}
+                  onAddFile={wrappedHandleAddFile}
+                  onAddFolder={wrappedHandleAddFolder}
+                  onDeleteFile={wrappedHandleDeleteFile}
+                  onDeleteFolder={wrappedHandleDeleteFolder}
+                  onRenameFile={wrappedHandleRenameFile}
+                  onRenameFolder={wrappedHandleRenameFolder}
+                />
+              )}
+              {sidebarOpen && activeView === "search" && (
+                <SearchPanel
+                  data={templateData!}
+                  onFileSelect={handleFileSelect}
+                />
+              )}
+              {sidebarOpen && activeView === "source-control" && (
+                <SourceControlPanel
+                  templateData={commitTemplateData}
+                  unsavedFiles={unsavedFilesForCommit}
+                />
+              )}
+              {/*  {sidebarOpen && activeView === "debug" && <DebugPanel />}*/}
+              {sidebarOpen && activeView === "extensions" && (
+                <ExtensionsPanel />
+              )}
+              {sidebarOpen && activeView === "collaboration" && (
+                <CollaborationPanel
+                  sessionId={id ?? ""}
+                  activeUsers={collab.activeUsers}
+                  messages={collab.messages}
+                  isConnected={collab.isConnected}
+                  currentUserId={collab.currentUserId}
+                  sendMessage={collab.sendMessage}
+                  onLogActivity={collab.logActivity}
+                  bindClientEvent={collab.bindClientEvent}
+                  triggerClientEvent={collab.triggerClientEvent}
+                  isCollaborationActive={collab.isCollaborationActive}
+                  onToggleCollaboration={() => {
+                    if (collab.isCollaborationActive) {
+                      collab.stopCollaboration();
+                    } else {
+                      collab.startCollaboration();
+                    }
+                  }}
+                  webrtc={{
+                    callMode: webrtc.callMode,
+                    callMembers: webrtc.callMembers,
+                    callElapsedSec: webrtc.callElapsedSec,
+                    isMuted: webrtc.isMuted,
+                    localStreamRef: webrtc.localStreamRef,
+                    startCall: webrtc.startCall,
+                    endCall: webrtc.endCall,
+                    toggleMute: webrtc.toggleMute,
+                  }}
+                  hostId={editorData?.userId}
+                  onLeaveSession={() => router.push("/dashboard")}
+                />
+              )}
+              {sidebarOpen && activeView === "account" && <AccountPanel />}
+              <SidebarInset>
+                <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                  <SidebarTrigger className="ml-1" />
+                  <Separator orientation="vertical" className="mr-2 h-4" />
+                  <div className="flex flex-1 items-center gap-2 ">
+                    <div className="flex flex-col flex-1">
+                      <h1 className="text-sm font-medium">
+                        {editorData?.title || "Null Edditor"}
+                      </h1>
+                      <p className="text-xs text-muted-foreground">
+                        {openFiles.length} File(s) Opened
+                        {hasUnsavedChanges && ". You have unsaved changes"}
+                      </p>
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size={"sm"}
+                          variant={"outline"}
+                          onClick={() => handleSave()}
+                          disabled={
+                            !activeFile || !activeFile.hasUnsavedChanges
+                          }
+                        >
+                          <Save className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Save (CTRL+S)</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSaveAll()}
+                          disabled={!hasUnsavedChanges}
+                        >
+                          <BookmarkPlus className="size-4" />
+                          All
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Save All (CTRL+SHIFT+S)</TooltipContent>
+                    </Tooltip>
+                    {/*    <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       size="sm"
@@ -864,124 +862,303 @@ const Page = () => {
                   </TooltipTrigger>
                   <TooltipContent>Hunter AI</TooltipContent>
                 </Tooltip> */}
-                  <ToggelAI
-                    isEnabled={aiSuggestion.isEnabled}
-                    onToggle={aiSuggestion.toggleEnabled}
-                    suggestionLoading={aiSuggestion.isLoading}
-                    activeFileName={activeFile ? `${activeFile.filename}.${activeFile.fileExtension}` : undefined}
-                    activeFileContent={activeFile?.content}
-                    activeFileLanguage={activeFile?.fileExtension}
-                    cursorPosition={cursor}
-                  />
-                  <div className="hidden sm:flex items-center gap-3">
-                    <span className="text-zinc-300 dark:text-zinc-700">|</span>
-                    {/* <HeaderPro /> */}
-                    <ThemeToggle />
-                    {/* <UserButton /> */}
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        <Settings className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => setIsPreviewVisible(!isPreviewVisible)}
-                      >
-                        {isPreviewVisible ? "Hide" : "Show"} Preview
-                      </DropdownMenuItem>
-                      {/* <DropdownMenuSeparator /> */}
-                      {/* <DropdownMenuItem onClick={() => {}}>
+                    <ToggelAI
+                      isEnabled={aiSuggestion.isEnabled}
+                      onToggle={aiSuggestion.toggleEnabled}
+                      suggestionLoading={aiSuggestion.isLoading}
+                      activeFileName={
+                        activeFile
+                          ? `${activeFile.filename}.${activeFile.fileExtension}`
+                          : undefined
+                      }
+                      activeFileContent={activeFile?.content}
+                      activeFileLanguage={activeFile?.fileExtension}
+                      cursorPosition={cursor}
+                    />
+                    <div className="hidden sm:flex items-center gap-3">
+                      <span className="text-zinc-300 dark:text-zinc-700">
+                        |
+                      </span>
+                      {/* <HeaderPro /> */}
+                      <ThemeToggle />
+                      {/* <UserButton /> */}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline">
+                          <Settings className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => setIsPreviewVisible(!isPreviewVisible)}
+                        >
+                          {isPreviewVisible ? "Hide" : "Show"} Preview
+                        </DropdownMenuItem>
+                        {/* <DropdownMenuSeparator /> */}
+                        {/* <DropdownMenuItem onClick={() => {}}>
                         Editor Settings
                       </DropdownMenuItem> */}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </header>
-              <div className="h-[calc(100vh-4rem)]">
-                {openFiles.length > 0 ? (
-                  <div className="h-full flex flex-col">
-                    <div className="border-b bg-muted/30">
-                      <Tabs
-                        value={activeFileId || ""}
-                        onValueChange={setActiveFileId}
-                      >
-                        <div className="flex items-center justify-between px-4 py-2">
-                          <TabsList className="h-8 bg-transparent p-0">
-                            {openFiles.map((file) => (
-                              <TabsTrigger
-                                key={file.id}
-                                value={file.id}
-                                className="relative h-8  px-3 data-[state=active]:bg-background data-[state=active]:shadow-sm group"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <FileText className="size-3" />
-                                  <span className="max-w-[150px] truncate">
-                                    {file.filename}.{file.fileExtension}
-                                  </span>
-                                  {file.hasUnsavedChanges && (
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </header>
+                <div className="h-[calc(100vh-4rem)]">
+                  {openFiles.length > 0 ? (
+                    <div className="h-full flex flex-col">
+                      <div className="border-b bg-muted/30">
+                        <Tabs
+                          value={activeFileId || ""}
+                          onValueChange={setActiveFileId}
+                        >
+                          <div className="flex items-center justify-between px-4 py-2">
+                            <TabsList className="h-8 bg-transparent p-0">
+                              {openFiles.map((file) => (
+                                <TabsTrigger
+                                  key={file.id}
+                                  value={file.id}
+                                  className="relative h-8  px-3 data-[state=active]:bg-background data-[state=active]:shadow-sm group"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="size-3" />
+                                    <span className="max-w-[150px] truncate">
+                                      {file.filename}.{file.fileExtension}
+                                    </span>
+                                    {file.hasUnsavedChanges && (
+                                      <span
+                                        className="h-2 w-2 rounded-full bg-orange-500 "
+                                        title="Unsaved Changes"
+                                      />
+                                    )}
                                     <span
-                                      className="h-2 w-2 rounded-full bg-orange-500 "
-                                      title="Unsaved Changes"
-                                    />
-                                  )}
-                                  <span
-                                    className="ml-2 h-4 w-4 hover:bg-destructive hover:text-destructive-forground rounded-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      closeFile(file.id);
-                                    }}
-                                  ></span>
-                                </div>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span
-                                      role="button"
-                                      tabIndex={0}
-                                      className="absolute right-1 top-1 cursor-pointer rounded p-1 opacity-0 hover:bg-red-500 group-hover:opacity-100"
+                                      className="ml-2 h-4 w-4 hover:bg-destructive hover:text-destructive-forground rounded-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         closeFile(file.id);
                                       }}
-                                      onKeyDown={(e) => {
-                                        if (
-                                          e.key === "Enter" ||
-                                          e.key === " "
-                                        ) {
+                                    ></span>
+                                  </div>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span
+                                        role="button"
+                                        tabIndex={0}
+                                        className="absolute right-1 top-1 cursor-pointer rounded p-1 opacity-0 hover:bg-red-500 group-hover:opacity-100"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
                                           closeFile(file.id);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (
+                                            e.key === "Enter" ||
+                                            e.key === " "
+                                          ) {
+                                            closeFile(file.id);
+                                          }
+                                        }}
+                                      >
+                                        <X className="size-4" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Close FileE</TooltipContent>
+                                  </Tooltip>
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+                            {openFiles.length > 1 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => closeAllFiles()}
+                              >
+                                Close All
+                              </Button>
+                            )}
+                          </div>
+                        </Tabs>
+                      </div>
+                      <div className="flex-1">
+                        {isPreviewVisible ? (
+                          <ResizablePanelGroup
+                            direction="horizontal"
+                            className="h-full"
+                            key="with-preview"
+                            autoSaveId={`editor-split-${id ?? "unknown"}`}
+                          >
+                            <ResizablePanel defaultSize={50} minSize={25}>
+                              <div className="h-full relative">
+                                {activeFile && (
+                                  <div className="absolute top-0 left-0 right-0 z-10">
+                                    <FileEditingIndicator
+                                      editor={fileEditing.getFileEditor(
+                                        activeFileId || "",
+                                      )}
+                                      currentUserId={session?.user?.id}
+                                      onUnlock={() =>
+                                        fileEditing.stopEditingFile(
+                                          activeFileId || "",
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                )}
+                                <div
+                                  className={`h-full ${
+                                    activeFile &&
+                                    fileEditing.getFileEditor(
+                                      activeFileId || "",
+                                    )
+                                      ? "pt-14"
+                                      : ""
+                                  }`}
+                                >
+                                  <CodeEditor
+                                    activeFile={activeFile}
+                                    content={activeFile?.content || ""}
+                                    onContentChange={async (value: string) => {
+                                      if (activeFileId && activeFile) {
+                                        if (
+                                          fileEditing.isFileBeingEditedByOther(
+                                            activeFileId,
+                                          )
+                                        ) {
+                                          return;
                                         }
-                                      }}
-                                    >
-                                      <X className="size-4" />
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Close FileE</TooltipContent>
-                                </Tooltip>
-                              </TabsTrigger>
-                            ))}
-                          </TabsList>
-                          {openFiles.length > 1 && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => closeAllFiles()}
-                            >
-                              Close All
-                            </Button>
-                          )}
-                        </div>
-                      </Tabs>
-                    </div>
-                    <div className="flex-1">
-                      {isPreviewVisible ? (
-                        <ResizablePanelGroup
-                          direction="horizontal"
-                          className="h-full"
-                          key="with-preview"
-                          autoSaveId={`editor-split-${id ?? "unknown"}`}
-                        >
-                          <ResizablePanel defaultSize={50} minSize={25}>
+                                        updateFileContent(activeFileId, value);
+
+                                        // Skip onChange during initial mount to prevent false positives
+                                        if (!isInitializingRef.current) {
+                                          // Get the last known content for this file
+                                          const lastContent =
+                                            lastBroadcastContentRef.current.get(
+                                              activeFileId,
+                                            );
+
+                                          // Only broadcast if content has ACTUALLY changed from what we last saw
+                                          if (
+                                            lastContent !== undefined &&
+                                            value !== lastContent
+                                          ) {
+                                            // User is actively making changes - start broadcasting editing
+                                            console.log(
+                                              `Content changed for ${activeFileId}. Broadcasting start edit.`,
+                                            );
+                                            fileEditing.startEditingFile(
+                                              activeFileId,
+                                            );
+                                            lastBroadcastContentRef.current.set(
+                                              activeFileId,
+                                              value,
+                                            );
+                                          }
+                                        }
+
+                                        // Broadcast to collaborators (debounced 300ms)
+                                        if (broadcastTimerRef.current) {
+                                          clearTimeout(
+                                            broadcastTimerRef.current,
+                                          );
+                                        }
+                                        broadcastTimerRef.current = setTimeout(
+                                          () => {
+                                            collab.broadcastCodeChange(
+                                              activeFileId,
+                                              value,
+                                            );
+                                          },
+                                          300,
+                                        );
+
+                                        // Sync changes to WebContainer in real-time (for dev server HMR)
+                                        if (
+                                          writeFileSync &&
+                                          templateData &&
+                                          instance
+                                        ) {
+                                          const filePath = findFilePath(
+                                            activeFile,
+                                            templateData,
+                                          );
+                                          if (filePath) {
+                                            try {
+                                              await writeFileSync(
+                                                filePath,
+                                                value,
+                                              );
+                                              await instance.fs.writeFile(
+                                                filePath,
+                                                value,
+                                              );
+                                            } catch (error) {
+                                              console.error(
+                                                "Failed to sync file to WebContainer:",
+                                                error,
+                                              );
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }}
+                                    onCursorChange={(
+                                      line: number,
+                                      column: number,
+                                    ) => {
+                                      if (activeFileId) {
+                                        collab.broadcastCursor(
+                                          activeFileId,
+                                          line,
+                                          column,
+                                        );
+                                      }
+                                      setCursor({ line, column });
+                                    }}
+                                    remoteCursors={collab.cursors}
+                                    activeFileId={activeFileId}
+                                    suggestion={aiSuggestion.suggestion}
+                                    suggestionLoading={aiSuggestion.isLoading}
+                                    suggestionPosition={aiSuggestion.position}
+                                    onAcceptSuggestion={(
+                                      editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                      monaco: typeof import("monaco-editor"),
+                                    ) =>
+                                      aiSuggestion.acceptSuggestion(
+                                        editor,
+                                        monaco,
+                                      )
+                                    }
+                                    onTriggerSuggestion={(
+                                      type: string,
+                                      editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                    ) =>
+                                      aiSuggestion.fetchSuggestion(type, editor)
+                                    }
+                                    onRejectSuggestion={(
+                                      type: string,
+                                      editor: import("monaco-editor").editor.IStandaloneCodeEditor,
+                                    ) => aiSuggestion.rejectSuggestion(editor)}
+                                    readOnly={fileEditing.isFileBeingEditedByOther(
+                                      activeFileId || "",
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                            </ResizablePanel>
+                            <ResizableHandle />
+                            <ResizablePanel defaultSize={50} minSize={25}>
+                              <WebContainerPreview
+                                templateData={templateData!}
+                                instance={instance}
+                                writeFileSync={writeFileSync}
+                                isLoading={containerLoading}
+                                error={containerError}
+                                serverUrl={serverUrl}
+                                forceResetup={false}
+                                previewKey={previewKey}
+                              />
+                            </ResizablePanel>
+                          </ResizablePanelGroup>
+                        ) : (
+                          <div className="h-full">
                             <div className="h-full relative">
                               {activeFile && (
                                 <div className="absolute top-0 left-0 right-0 z-10">
@@ -990,7 +1167,11 @@ const Page = () => {
                                       activeFileId || "",
                                     )}
                                     currentUserId={session?.user?.id}
-                                    onUnlock={() => fileEditing.stopEditingFile(activeFileId || "")}
+                                    onUnlock={() =>
+                                      fileEditing.stopEditingFile(
+                                        activeFileId || "",
+                                      )
+                                    }
                                   />
                                 </div>
                               )}
@@ -1016,23 +1197,15 @@ const Page = () => {
                                       }
                                       updateFileContent(activeFileId, value);
 
-                                      // Skip onChange during initial mount to prevent false positives
                                       if (!isInitializingRef.current) {
-                                        // Get the last known content for this file
                                         const lastContent =
                                           lastBroadcastContentRef.current.get(
                                             activeFileId,
                                           );
-
-                                        // Only broadcast if content has ACTUALLY changed from what we last saw
                                         if (
                                           lastContent !== undefined &&
                                           value !== lastContent
                                         ) {
-                                          // User is actively making changes - start broadcasting editing
-                                          console.log(
-                                            `Content changed for ${activeFileId}. Broadcasting start edit.`,
-                                          );
                                           fileEditing.startEditingFile(
                                             activeFileId,
                                           );
@@ -1043,7 +1216,6 @@ const Page = () => {
                                         }
                                       }
 
-                                      // Broadcast to collaborators (debounced 300ms)
                                       if (broadcastTimerRef.current) {
                                         clearTimeout(broadcastTimerRef.current);
                                       }
@@ -1057,7 +1229,6 @@ const Page = () => {
                                         300,
                                       );
 
-                                      // Sync changes to WebContainer in real-time (for dev server HMR)
                                       if (
                                         writeFileSync &&
                                         templateData &&
@@ -1130,206 +1301,59 @@ const Page = () => {
                                 />
                               </div>
                             </div>
-                          </ResizablePanel>
-                          <ResizableHandle />
-                          <ResizablePanel defaultSize={50} minSize={25}>
-                            <WebContainerPreview
-                              templateData={templateData!}
-                              instance={instance}
-                              writeFileSync={writeFileSync}
-                              isLoading={containerLoading}
-                              error={containerError}
-                              serverUrl={serverUrl}
-                              forceResetup={false}
-                              previewKey={previewKey}
-                            />
-                          </ResizablePanel>
-                        </ResizablePanelGroup>
-                      ) : (
-                        <div className="h-full">
-                          <div className="h-full relative">
-                            {activeFile && (
-                              <div className="absolute top-0 left-0 right-0 z-10">
-                                <FileEditingIndicator
-                                  editor={fileEditing.getFileEditor(
-                                    activeFileId || "",
-                                  )}
-                                  currentUserId={session?.user?.id}
-                                  onUnlock={() => fileEditing.stopEditingFile(activeFileId || "")}
-                                />
-                              </div>
-                            )}
-                            <div
-                              className={`h-full ${
-                                activeFile &&
-                                fileEditing.getFileEditor(activeFileId || "")
-                                  ? "pt-14"
-                                  : ""
-                              }`}
-                            >
-                              <CodeEditor
-                                activeFile={activeFile}
-                                content={activeFile?.content || ""}
-                                onContentChange={async (value: string) => {
-                                  if (activeFileId && activeFile) {
-                                    if (
-                                      fileEditing.isFileBeingEditedByOther(
-                                        activeFileId,
-                                      )
-                                    ) {
-                                      return;
-                                    }
-                                    updateFileContent(activeFileId, value);
-
-                                    if (!isInitializingRef.current) {
-                                      const lastContent =
-                                        lastBroadcastContentRef.current.get(
-                                          activeFileId,
-                                        );
-                                      if (
-                                        lastContent !== undefined &&
-                                        value !== lastContent
-                                      ) {
-                                        fileEditing.startEditingFile(
-                                          activeFileId,
-                                        );
-                                        lastBroadcastContentRef.current.set(
-                                          activeFileId,
-                                          value,
-                                        );
-                                      }
-                                    }
-
-                                    if (broadcastTimerRef.current) {
-                                      clearTimeout(broadcastTimerRef.current);
-                                    }
-                                    broadcastTimerRef.current = setTimeout(
-                                      () => {
-                                        collab.broadcastCodeChange(
-                                          activeFileId,
-                                          value,
-                                        );
-                                      },
-                                      300,
-                                    );
-
-                                    if (
-                                      writeFileSync &&
-                                      templateData &&
-                                      instance
-                                    ) {
-                                      const filePath = findFilePath(
-                                        activeFile,
-                                        templateData,
-                                      );
-                                      if (filePath) {
-                                        try {
-                                          await writeFileSync(filePath, value);
-                                          await instance.fs.writeFile(
-                                            filePath,
-                                            value,
-                                          );
-                                        } catch (error) {
-                                          console.error(
-                                            "Failed to sync file to WebContainer:",
-                                            error,
-                                          );
-                                        }
-                                      }
-                                    }
-                                  }
-                                }}
-                                onCursorChange={(
-                                  line: number,
-                                  column: number,
-                                ) => {
-                                  if (activeFileId) {
-                                    collab.broadcastCursor(
-                                      activeFileId,
-                                      line,
-                                      column,
-                                    );
-                                  }
-                                  setCursor({ line, column });
-                                }}
-                                remoteCursors={collab.cursors}
-                                activeFileId={activeFileId}
-                                suggestion={aiSuggestion.suggestion}
-                                suggestionLoading={aiSuggestion.isLoading}
-                                suggestionPosition={aiSuggestion.position}
-                                onAcceptSuggestion={(
-                                  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                                  monaco: typeof import("monaco-editor"),
-                                ) =>
-                                  aiSuggestion.acceptSuggestion(editor, monaco)
-                                }
-                                onTriggerSuggestion={(
-                                  type: string,
-                                  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                                ) => aiSuggestion.fetchSuggestion(type, editor)}
-                                onRejectSuggestion={(
-                                  type: string,
-                                  editor: import("monaco-editor").editor.IStandaloneCodeEditor,
-                                ) => aiSuggestion.rejectSuggestion(editor)}
-                                readOnly={fileEditing.isFileBeingEditedByOther(
-                                  activeFileId || "",
-                                )}
-                              />
-                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-4">
-                    <img
-                      src="/null-defult.png"
-                      alt="No files open"
-                      className="h-50 w-50 opacity-10"
-                    />
-                    <p className="text-center text-sm text-muted-foreground">
-                      No files are open. Please select a file from the file tree
-                      to start editing.
-                    </p>
-                  </div>
-                )}
-              </div>
-              {/*  FOOTER BAR */}
-              <div className="h-8 border-t bg-[#0a0a0a] flex items-center justify-between px-3 text-xs">
-                {/* LEFT */}
-                <div className="flex items-center gap-4">
-                  <span>
-                    {activeFile
-                      ? `${activeFile.filename}.${activeFile.fileExtension}`
-                      : "No file"}
-                  </span>
-
-                  <span
-                    className={
-                      hasUnsavedChanges ? "text-orange-500" : "text-green-500"
-                    }
-                  >
-                    {hasUnsavedChanges ? "Unsaved Changes" : "Saved"}
-                  </span>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-4">
+                      <img
+                        src="/null-defult.png"
+                        alt="No files open"
+                        className="h-50 w-50 opacity-10"
+                      />
+                      <p className="text-center text-sm text-muted-foreground">
+                        No files are open. Please select a file from the file
+                        tree to start editing.
+                      </p>
+                    </div>
+                  )}
                 </div>
+                {/*  FOOTER BAR */}
+                <div className="h-auto  border bg-background flex items-center justify-between p-2 text-xs rounded-2xl">
+                  {/* LEFT */}
+                  <div className="flex items-center gap-4 ml-3">
+                    <span>
+                      {activeFile
+                        ? `${activeFile.filename}.${activeFile.fileExtension}`
+                        : "No file"}
+                    </span>
 
-                {/* RIGHT */}
-                <div className="flex items-center gap-4">
-                  <span>
-                    Ln {cursor.line}, Col {cursor.column}
-                  </span>
+                    <span
+                      className={
+                        hasUnsavedChanges ? "text-orange-500" : "text-green-500"
+                      }
+                    >
+                      {hasUnsavedChanges ? "Unsaved Changes" : "Saved"}
+                    </span>
+                  </div>
 
-                  <span>
-                    {activeFile?.fileExtension?.toUpperCase() || "TXT"}
-                  </span>
+                  {/* RIGHT */}
+                  <div className="flex items-center gap-4">
+                    <span>
+                      Ln {cursor.line}, Col {cursor.column}
+                    </span>
+
+                    <span>
+                      {activeFile?.fileExtension?.toUpperCase() || "TXT"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </SidebarInset>
-          </div>
-        </ActivityBarProvider>
-      </TooltipProvider>
-    </SidebarProvider>
+              </SidebarInset>
+            </div>
+          </ActivityBarProvider>
+        </TooltipProvider>
+      </SidebarProvider>
     </>
   );
 };

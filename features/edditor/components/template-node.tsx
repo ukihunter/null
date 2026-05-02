@@ -10,8 +10,9 @@ import {
   MoreHorizontal,
   Trash2,
   Edit3,
-  File,
 } from "lucide-react";
+import FileIcon from "./file-icon";
+
 
 import {
   Collapsible,
@@ -158,7 +159,7 @@ const TemplateNode = ({
             onClick={() => onFileSelect?.(file)}
             isActive={isSelected}
           >
-            <File className="mr-2 h-4 w-4 shrink-0" />
+            <FileIcon extension={file.fileExtension} className="mr-2 h-4 w-4 shrink-0" />
             <span>{filename}</span>
           </SidebarMenuButton>
 
@@ -283,7 +284,7 @@ const TemplateNode = ({
             <CollapsibleTrigger asChild>
               <SidebarMenuButton className="flex-1">
                 <ChevronRight className="transition-transform" />
-                <Folder className="mr-2 h-4 w-4 shrink-0" />
+                <FileIcon extension="" isFolder isOpen={isOpen} className="mr-2 h-4 w-4 shrink-0" />
                 <span>{folderName}</span>
               </SidebarMenuButton>
             </CollapsibleTrigger>
