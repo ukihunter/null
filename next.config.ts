@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "lh3.googleusercontent.com", // <-- Added for Google user images
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com", // <-- Added for Unsplash demo images
+      },
     ],
   },
   async headers() {
