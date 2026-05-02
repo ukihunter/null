@@ -99,6 +99,43 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
       },
     };
 
+    const [isKilling, setIsKilling] = useState(false);
+
+    const handleKillPort = async (port: number = 3010) => {
+      if (!WebContainer || isKilling) return;
+      
+      setIsKilling(true);
+      if (term.current) {
+        term.current.writeln(`\r\n[Terminal] Attempting to kill process on port ${port}...`);
+      }
+      
+      try {
+        const process = await WebContainer.spawn("npx", ["kill-port", port.toString()]);
+        
+        process.output.pipeTo(new WritableStream({
+          write(data) {
+            if (term.current) term.current.write(data);
+          }
+        }));
+
+        const exitCode = await process.exit;
+        if (term.current) {
+          if (exitCode === 0) {
+            term.current.writeln(`\r\n[Terminal] Port ${port} cleared successfully.`);
+          } else {
+            term.current.writeln(`\r\n[Terminal] Port ${port} cleanup finished (Exit code: ${exitCode}).`);
+          }
+        }
+      } catch (err) {
+        if (term.current) {
+          term.current.writeln(`\r\n[Terminal] Error killing port: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      } finally {
+        setIsKilling(false);
+        writePrompt();
+      }
+    };
+
     const writePrompt = useCallback(() => {
       if (term.current) {
         term.current.write("\r\n$ ");
@@ -464,6 +501,15 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(
                 <span className="text-xs text-muted-foreground">Connected</span>
               </div>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleKillPort(3010)}
+              disabled={isKilling}
+              className="h-6 px-2 text-[10px] ml-2 border-red-500/30 text-red-500 hover:bg-red-500/10"
+            >
+              {isKilling ? "Killing..." : "Kill Port 3010"}
+            </Button>
           </div>
 
           <div className="flex items-center gap-1">

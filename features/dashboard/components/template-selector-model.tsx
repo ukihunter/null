@@ -283,7 +283,7 @@ const TemplateSelectorModel = ({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[1200px] max-h-[90vh]">
+      <DialogContent className="sm:max-w-[1200px] max-h-[90vh] bg-black">
         {step === "select" ? (
           <>
             <DialogHeader>

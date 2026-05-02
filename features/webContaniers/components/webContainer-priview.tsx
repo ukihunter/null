@@ -30,6 +30,30 @@ interface WebContainerPreviewProps {
   previewKey?: number;
 }
 
+const killPort = async (instance: WebContainer, port: number, writeToTerminal?: (data: string) => void) => {
+  try {
+    if (writeToTerminal) writeToTerminal(`[System] Checking port ${port}...\r\n`);
+    const killProcess = await instance.spawn("npx", ["-y", "kill-port", port.toString()]);
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
+    await Promise.race([killProcess.exit, timeout]);
+    if (writeToTerminal) writeToTerminal(`[System] Port ${port} cleanup complete.\r\n`);
+  } catch (err) {
+    if (writeToTerminal) writeToTerminal(`[System] Port ${port} cleanup skipped.\r\n`);
+    console.warn(`Could not kill port ${port}:`, err);
+  }
+};
+
+const getStartCommand = async (instance: WebContainer): Promise<string> => {
+  try {
+    const pkgContent = await instance.fs.readFile("package.json", "utf-8");
+    const pkg = JSON.parse(pkgContent);
+    if (pkg.scripts?.dev) return "dev";
+    if (pkg.scripts?.start) return "start";
+    if (pkg.scripts?.serve) return "serve";
+  } catch (e) {}
+  return "start";
+};
+
 const WebContainerPreview = ({
   templateData,
   serverUrl,
@@ -53,12 +77,28 @@ const WebContainerPreview = ({
   const [setupError, setSetupError] = useState<string | null>(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [isSetupInProgress, setIsSetupInProgress] = useState(false);
-
   const terminalRef = useRef<any>(null);
   const serverProcessRef = useRef<any>(null);
+  const setupGenerationRef = useRef(0);
+  const lastStructureRef = useRef<string>("");
 
   useEffect(() => {
-    if (forceResetup) {
+    // Create a fingerprint of the project structure (filenames and folders)
+    // to avoid resetting when only file content changes
+    const getStructureFingerprint = (items: any[]): string => {
+      return items
+        .map((item) => {
+          if (item.items) return `${item.folderName}(${getStructureFingerprint(item.items)})`;
+          return `${item.filename}.${item.fileExtension}`;
+        })
+        .sort()
+        .join("|");
+    };
+
+    const currentStructure = getStructureFingerprint(templateData.items);
+
+    if (forceResetup || (currentStructure !== lastStructureRef.current && lastStructureRef.current !== "")) {
+      lastStructureRef.current = currentStructure;
       setIsSetupComplete(false);
       setIsSetupInProgress(false);
       setPreviewUrl("");
@@ -70,230 +110,130 @@ const WebContainerPreview = ({
         starting: false,
         ready: false,
       });
+      setSetupError(null);
+    } else if (lastStructureRef.current === "") {
+      lastStructureRef.current = currentStructure;
     }
-  }, [forceResetup]);
+  }, [forceResetup, templateData.items]);
 
   useEffect(() => {
     async function setupcontainer() {
       if (!instance || isSetupComplete || isSetupInProgress) return;
-
+      
+      const generation = ++setupGenerationRef.current;
+      
       try {
+        // Wait for terminal to be ready (up to 5 seconds)
+        let attempts = 0;
+        while (!terminalRef.current?.writeToTerminal && attempts < 10) {
+          await new Promise(r => setTimeout(r, 500));
+          attempts++;
+          if (generation !== setupGenerationRef.current) return;
+        }
+
         setIsSetupInProgress(true);
+
+        const write = (data: string) => {
+          terminalRef.current?.writeToTerminal?.(data);
+        };
+
+        write("\r\n[System] Preparing environment for new template...\r\n");
+
+        // 1. Cleanup old files
+        write("[System] Cleaning up old files...\r\n");
         try {
-          const packaejsonExists = await instance.fs.readFile(
-            "package.json",
-            "utf-8",
-          );
-          if (packaejsonExists) {
-            if (terminalRef.current?.writeToTerminal) {
-              terminalRef.current.writeToTerminal(
-                " Reconnecting to existing WebContainer session...\r\n",
-              );
+          const entries = await instance.fs.readdir(".", { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.name !== "node_modules") {
+              await instance.fs.rm(entry.name, { recursive: true }).catch(() => {});
             }
-
-            // Check if server is already running
-            if (serverUrl) {
-              if (terminalRef.current?.writeToTerminal) {
-                terminalRef.current.writeToTerminal(
-                  ` Server already running at ${serverUrl}\r\n`,
-                );
-              }
-              setPreviewUrl(serverUrl);
-              setCurrentStep(4);
-              setLoadingState((prev) => ({
-                ...prev,
-                starting: false,
-                ready: true,
-              }));
-              setIsSetupComplete(true);
-              setIsSetupInProgress(false);
-              return;
-            }
-
-            // Set up server-ready listener
-            instance.on("server-ready", (port: number, url: string) => {
-              console.log(
-                `Reconnected to the server on port ${port} at URL: ${url}`,
-              );
-              if (terminalRef.current?.writeToTerminal) {
-                terminalRef.current.writeToTerminal(
-                  ` Reconnected to server at ${url}\r\n`,
-                );
-              }
-
-              setPreviewUrl(url);
-              setLoadingState((prev) => ({
-                ...prev,
-                starting: false,
-                ready: true,
-              }));
-              setIsSetupComplete(true);
-              setIsSetupInProgress(false);
-            });
-
-            setCurrentStep(4);
-            setLoadingState((prev) => ({ ...prev, starting: true }));
-
-            // Kill existing server process if running
-            if (serverProcessRef.current) {
-              try {
-                serverProcessRef.current.kill();
-                if (terminalRef.current?.writeToTerminal) {
-                  terminalRef.current.writeToTerminal(
-                    " Stopping existing server...\r\n",
-                  );
-                }
-              } catch (err) {
-                console.log("No existing server to kill");
-              }
-            }
-
-            // Restart the dev server
-            if (terminalRef.current?.writeToTerminal) {
-              terminalRef.current.writeToTerminal(
-                " Starting development server...\r\n",
-              );
-            }
-            const startProcess = await instance.spawn("npm", ["run", "start"]);
-            serverProcessRef.current = startProcess;
-            startProcess.output.pipeTo(
-              new WritableStream({
-                write(data) {
-                  if (terminalRef.current?.writeToTerminal) {
-                    terminalRef.current.writeToTerminal(data);
-                  }
-                },
-              }),
-            );
-            return;
           }
-        } catch (err) {}
-        //setup 1:transform data
+        } catch (e) {}
+
+        if (generation !== setupGenerationRef.current) return;
+
+        // 2. Transform data
         setLoadingState((prev) => ({ ...prev, transforming: true }));
         setCurrentStep(1);
-        //terminal relate stuff
-        if (terminalRef.current?.writeToTerminal) {
-          terminalRef.current.writeToTerminal(
-            "Transforming template data..\r\n",
-          );
-        }
-        // @ts-ignore
+        write("[System] Transforming template data...\r\n");
+        
         const files = await transformToWebContainerFormat(templateData);
-        setLoadingState((prev) => ({
-          ...prev,
-          mounting: true,
-          transforming: false,
-        }));
+        if (generation !== setupGenerationRef.current) return;
+
+        // 3. Mount files
+        setLoadingState((prev) => ({ ...prev, mounting: true, transforming: false }));
         setCurrentStep(2);
-        //terminal relate stuff
-
-        if (terminalRef.current?.writeToTerminal) {
-          terminalRef.current.writeToTerminal(
-            "Moonting files to webContainer..\r\n",
-          );
-        }
-
+        write("[System] Mounting files to WebContainer...\r\n");
         await instance.mount(files);
+        if (generation !== setupGenerationRef.current) return;
 
-        if (terminalRef.current?.writeToTerminal) {
-          terminalRef.current.writeToTerminal("Files mounted successfully\r\n");
-        }
+        // 4. Check if we need to install dependencies
+        let nodeModulesExist = false;
+        try {
+          const entries = await instance.fs.readdir(".", { withFileTypes: true });
+          nodeModulesExist = entries.some(e => e.name === "node_modules" && e.isDirectory());
+        } catch (e) {}
 
-        setLoadingState((prev) => ({
-          ...prev,
-          installing: true,
-          mounting: false,
-        }));
-        setCurrentStep(3);
-        //terminal relate stuff
-
-        if (terminalRef.current?.writeToTerminal) {
-          terminalRef.current.writeToTerminal(
-            " Installing dependencies...\r\n",
-          );
-        }
-
-        const installProcess = await instance.spawn("npm", ["install"]);
-        installProcess.output.pipeTo(
-          new WritableStream({
+        if (!nodeModulesExist) {
+          setLoadingState((prev) => ({ ...prev, installing: true, mounting: false }));
+          setCurrentStep(3);
+          write("[System] Installing dependencies (this may take a minute)...\r\n");
+          
+          const installProcess = await instance.spawn("npm", ["install"]);
+          installProcess.output.pipeTo(new WritableStream({
             write(data) {
-              // terminal relate stuff
-              // For example: console.log(data);
-              if (terminalRef.current?.writeToTerminal) {
-                terminalRef.current.writeToTerminal(data);
-              }
-            },
-          }),
-        );
-        const installExitCode = await installProcess.exit;
+              write(data);
+            }
+          }));
+          const exitCode = await installProcess.exit;
+          if (generation !== setupGenerationRef.current) return;
+          if (exitCode !== 0) throw new Error(`Installation failed with code ${exitCode}`);
+        } else {
+          write("[System] node_modules found, skipping install.\r\n");
+        }
 
-        if (installExitCode !== 0) {
-          throw new Error(
-            `Dependency installation dependency installation failed.Exit code: " +
-            ${installExitCode}`,
-          );
-        }
-        if (terminalRef.current?.writeToTerminal) {
-          terminalRef.current.writeToTerminal(
-            " Dependencies installed successfully\r\n",
-          );
-        }
-        setLoadingState((prev) => ({
-          ...prev,
-          installing: false,
-          starting: true,
-        }));
-        //terminal relate stuff
+        // 5. Start Server
+        setLoadingState((prev) => ({ ...prev, installing: false, starting: true }));
         setCurrentStep(4);
-        const startProcess = await instance.spawn("npm", ["run", "start"]);
+        
+        const startCmd = await getStartCommand(instance);
+        write(`[System] Cleaning up ports and starting server with 'npm run ${startCmd}'...\r\n`);
+        
+        await killPort(instance, 3010, write);
+        if (generation !== setupGenerationRef.current) return;
+
+        const startProcess = await instance.spawn("npm", ["run", startCmd]);
         serverProcessRef.current = startProcess;
 
         instance.on("server-ready", (port: number, url: string) => {
-          console.log(`Server is running on port ${port} at URL: ${url}`);
-          if (terminalRef.current?.writeToTerminal) {
-            terminalRef.current.writeToTerminal(` Server ready at ${url}\r\n`);
-          }
+          if (generation !== setupGenerationRef.current) return;
+          console.log(`Server ready at ${url}`);
+          write(`\r\n[System] Server ready at ${url}\r\n`);
           setPreviewUrl(url);
-          setLoadingState((prev) => ({
-            ...prev,
-            starting: false,
-            ready: true,
-          }));
+          setLoadingState((prev) => ({ ...prev, starting: false, ready: true }));
           setIsSetupComplete(true);
           setIsSetupInProgress(false);
         });
 
-        startProcess.output.pipeTo(
-          new WritableStream({
-            write(data) {
-              // terminal relate stuff
-              // For example: console.log(data);
-              if (terminalRef.current?.writeToTerminal) {
-                terminalRef.current.writeToTerminal(data);
-              }
-            },
-          }),
-        );
-      } catch (err) {
-        console.error("Error setting up container:", err);
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        if (terminalRef.current?.writeToTerminal) {
-          terminalRef.current.writeToTerminal(` Error: ${errorMessage}\r\n`);
-        }
+        startProcess.output.pipeTo(new WritableStream({
+          write(data) {
+            write(data);
+          }
+        }));
 
+      } catch (err) {
+        if (generation !== setupGenerationRef.current) return;
+        console.error("Setup failed:", err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
         setSetupError(errorMessage);
         setIsSetupInProgress(false);
-        setLoadingState({
-          transforming: false,
-          mounting: false,
-          installing: false,
-          starting: false,
-          ready: false,
-        });
+        write(`\r\n[Error] ${errorMessage}\r\n`);
       }
     }
+
     setupcontainer();
-  }, [instance, isSetupComplete, isSetupInProgress]);
+  }, [instance, isSetupComplete]);
+
 
   //cleanup funtion to prevent memory leaks
   useEffect(() => {
