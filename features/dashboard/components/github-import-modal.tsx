@@ -62,7 +62,7 @@ const GithubImportModal = ({ isOpen, onClose, onSubmit }: Props) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-black/90 backdrop-blur-sm border border-gray-700">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Github className="h-5 w-5 text-[#ff6585]" />

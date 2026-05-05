@@ -479,7 +479,6 @@ export function SourceControlPanel({ templateData, unsavedFiles = [] }: Props) {
   const githubToken = (session as any)?.githubAccessToken;
   const isValidRepo = repo.includes("/");
 
-  // 🔥 SUPER SAFE DEDUPLICATION (FINAL VERSION)
   const dedupeCommits = (list: any[]) => {
     const seen = new Set<string>();
     const result: any[] = [];
@@ -499,7 +498,7 @@ export function SourceControlPanel({ templateData, unsavedFiles = [] }: Props) {
     return result;
   };
 
-  // 📦 LOAD HISTORY (ROBUST API HANDLING)
+  //  LOAD HISTORY (ROBUST API HANDLING)
   const loadHistory = useCallback(async () => {
     if (!githubToken || !isValidRepo) return;
 

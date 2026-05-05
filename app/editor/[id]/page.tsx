@@ -472,11 +472,11 @@ const Page = () => {
         const updatedOpenFiles = openFiles.map((f) =>
           f.id === targetFileId
             ? {
-                ...f,
-                content: fileToSave.content,
-                originalContent: fileToSave.content,
-                hasUnsavedChanges: false,
-              }
+              ...f,
+              content: fileToSave.content,
+              originalContent: fileToSave.content,
+              hasUnsavedChanges: false,
+            }
             : f,
         );
         setOpenFiles(updatedOpenFiles);
@@ -560,11 +560,11 @@ const Page = () => {
       const nextOpenFiles = openFiles.map((file) =>
         file.id === fileId
           ? {
-              ...file,
-              content,
-              originalContent: content,
-              hasUnsavedChanges: false,
-            }
+            ...file,
+            content,
+            originalContent: content,
+            hasUnsavedChanges: false,
+          }
           : file,
       );
       setOpenFiles(nextOpenFiles);
@@ -820,6 +820,73 @@ const Page = () => {
                         {hasUnsavedChanges && ". You have unsaved changes"}
                       </p>
                     </div>
+                    {/* Collaboration Avatar Stack - only visible during active sessions */}
+                    {collab.isCollaborationActive && collab.activeUsers.length > 0 && (
+                      <>
+                        <Separator orientation="vertical" className="mx-1 h-6" />
+                        <div className="flex items-center -space-x-2.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                          {collab.activeUsers.slice(0, 3).map((user, index) => (
+                            <Tooltip key={user.id}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="relative h-7 w-7 rounded-full ring-2 ring-background cursor-pointer transition-all duration-200 hover:scale-110 hover:z-20 hover:-translate-y-0.5"
+                                  style={{
+                                    zIndex: collab.activeUsers.length - index,
+                                    animationDelay: `${index * 75}ms`,
+                                  }}
+                                >
+                                  {user.image ? (
+                                    <img
+                                      src={user.image}
+                                      alt={user.name}
+                                      className="h-full w-full rounded-full object-cover"
+                                      style={{
+                                        boxShadow: `0 0 0 2px ${user.color}`,
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      className="h-full w-full rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                                      style={{
+                                        background: user.color,
+                                        boxShadow: `0 0 0 2px ${user.color}40`,
+                                      }}
+                                    >
+                                      {user.name?.charAt(0)?.toUpperCase() || "?"}
+                                    </div>
+                                  )}
+                                  {/* Online indicator dot */}
+                                  <span
+                                    className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500"
+                                    style={{ zIndex: 1 }}
+                                  />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs">
+                                {user.id === collab.currentUserId ? `${user.name} (You)` : user.name}
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                          {collab.activeUsers.length > 3 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="relative h-7 w-7 rounded-full ring-2 ring-background bg-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:z-20"
+                                  style={{ zIndex: 0 }}
+                                >
+                                  <span className="text-[10px] font-semibold text-muted-foreground">
+                                    +{collab.activeUsers.length - 3}
+                                  </span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs">
+                                {collab.activeUsers.slice(3).map(u => u.name).join(", ")}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </>
+                    )}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -849,6 +916,9 @@ const Page = () => {
                       </TooltipTrigger>
                       <TooltipContent>Save All (CTRL+SHIFT+S)</TooltipContent>
                     </Tooltip>
+
+
+
                     {/*    <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -1003,14 +1073,13 @@ const Page = () => {
                                   </div>
                                 )}
                                 <div
-                                  className={`h-full ${
-                                    activeFile &&
-                                    fileEditing.getFileEditor(
-                                      activeFileId || "",
-                                    )
+                                  className={`h-full ${activeFile &&
+                                      fileEditing.getFileEditor(
+                                        activeFileId || "",
+                                      )
                                       ? "pt-14"
                                       : ""
-                                  }`}
+                                    }`}
                                 >
                                   <CodeEditor
                                     activeFile={activeFile}
@@ -1176,12 +1245,11 @@ const Page = () => {
                                 </div>
                               )}
                               <div
-                                className={`h-full ${
-                                  activeFile &&
-                                  fileEditing.getFileEditor(activeFileId || "")
+                                className={`h-full ${activeFile &&
+                                    fileEditing.getFileEditor(activeFileId || "")
                                     ? "pt-14"
                                     : ""
-                                }`}
+                                  }`}
                               >
                                 <CodeEditor
                                   activeFile={activeFile}
