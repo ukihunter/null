@@ -461,8 +461,6 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     setAttachments((prev) => prev.filter((file) => file.id !== id));
   };
 
-
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -604,7 +602,8 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
       })),
     };
 
-    const instruction = "IMPORTANT: When providing code snippets, please use the programming language of the attached files or the active file context (e.g. if the file is an HTML file, provide HTML code snippets, not React/JSX), unless the user explicitly requests a different language.";
+    const instruction =
+      "IMPORTANT: When providing code snippets, please use the programming language of the attached files or the active file context (e.g. if the file is an HTML file, provide HTML code snippets, not React/JSX), unless the user explicitly requests a different language.";
 
     switch (mode) {
       case "review":
@@ -930,13 +929,13 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                 const mode = value as "chat" | "review" | "fix" | "optimize";
                 setChatMode(mode);
                 setFilterType(
-                  mode === "chat" 
-                    ? "chat" 
-                    : mode === "review" 
-                      ? "code_review" 
-                      : mode === "fix" 
-                        ? "error_fix" 
-                        : "optimization"
+                  mode === "chat"
+                    ? "chat"
+                    : mode === "review"
+                      ? "code_review"
+                      : mode === "fix"
+                        ? "error_fix"
+                        : "optimization",
                 );
               }}
               className="px-6"
