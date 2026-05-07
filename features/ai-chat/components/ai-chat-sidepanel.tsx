@@ -603,21 +603,21 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     };
 
     const instruction =
-      "IMPORTANT: When providing code snippets, please use the programming language of the attached files or the active file context (e.g. if the file is an HTML file, provide HTML code snippets, not React/JSX), unless the user explicitly requests a different language.";
+      "IMPORTANT: When providing code snippets, please use the exact programming language of the attached files or the active file context (e.g., if the file is an HTML file, provide HTML code snippets, not React/JSX). Closely analyze the attached file types and base your suggestions around their specific paradigms (e.g., Python vs TypeScript).";
 
     switch (mode) {
       case "review":
-        return `Please review this code and provide detailed suggestions for improvement, including performance, security, and best practices:\n\n**Context:** ${JSON.stringify(
+        return `You are an expert code reviewer. Please provide a detailed, paragraph-style review of the provided code in plain text. Do NOT just dump code. Explain what the code does well, point out areas for improvement (performance, security, readability, best practices), and give an overall assessment.\n\n**Context:** ${JSON.stringify(
           baseContext,
         )}\n\n**Request:** ${content}\n\n${instruction}`;
       case "fix":
-        return `Please help fix issues in this code, including bugs, errors, and potential problems:\n\n**Context:** ${JSON.stringify(
+        return `You are an expert software debugger. Evaluate if the provided code is correct or wrong. Identify bugs, errors, logical flaws, or anti-patterns. Clearly explain WHY it is wrong, then provide the corrected code snippet and explain your fixes.\n\n**Context:** ${JSON.stringify(
           baseContext,
-        )}\n\n**Problem:** ${content}\n\n${instruction}`;
+        )}\n\n**Request/Problem:** ${content}\n\n${instruction}`;
       case "optimize":
-        return `Please analyze this code for performance optimizations and suggest improvements:\n\n**Context:** ${JSON.stringify(
+        return `You are an expert in code optimization. Analyze the provided code specifically for scalability, performance, and efficiency bottlenecks. Explain exactly where and how it can be improved, and provide the optimized code snippets.\n\n**Context:** ${JSON.stringify(
           baseContext,
-        )}\n\n**Code to optimize:** ${content}\n\n${instruction}`;
+        )}\n\n**Request/Code to optimize:** ${content}\n\n${instruction}`;
       default:
         return `**Context:** ${JSON.stringify(baseContext)}\n\n**Request:** ${content}\n\n${instruction}`;
     }
@@ -652,7 +652,10 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
       // Prepare enhanced context
       let contextualMessage = getChatModePrompt(chatMode, input.trim());
 
+      let hasCodeContext = false;
+
       if (attachments.length > 0) {
+        hasCodeContext = true;
         contextualMessage += "\n\nAttached files:\n";
         attachments.forEach((file) => {
           contextualMessage += `\n**${file.name}** (${file.language}, ${
@@ -662,6 +665,15 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
             1000,
           )}\n\`\`\`\n`;
         });
+      }
+
+      if (
+        !hasCodeContext &&
+        activeFileContent &&
+        activeFileName &&
+        chatMode !== "chat"
+      ) {
+        contextualMessage += `\n\nActive file (**${activeFileName}**):\n\`\`\`${activeFileLanguage || "text"}\n${activeFileContent.substring(0, 2000)}\n\`\`\`\n`;
       }
 
       const response = await fetch("/api/chat", {
