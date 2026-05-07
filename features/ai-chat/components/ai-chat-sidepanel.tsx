@@ -657,7 +657,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
             role: "assistant",
             content:
               typeof errorData.details === "string" 
-                ? \`⚠️ Error: \${errorData.details}\`
+                ? `⚠️ Error: ${errorData.details}`
                 : "Sorry, I encountered an error while processing your request. Please try again.",
             timestamp: new Date(),
             id: Date.now().toString(),
