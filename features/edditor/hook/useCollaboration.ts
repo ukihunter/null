@@ -105,6 +105,13 @@ export function useCollaboration(sessionId: string) {
         });
       });
       setActiveUsers(users);
+
+      // Save this user's collaboration session to the database
+      fetch("/api/collaboration/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      }).catch((e) => console.error("Failed to save collaborator session", e));
     });
 
     channel.bind("pusher:member_added", (member: PusherMember) => {
@@ -333,11 +340,17 @@ export function useCollaboration(sessionId: string) {
 
   const stopCollaboration = useCallback(() => {
     void logActivity("session_stopped");
+
+    // Remove this user's collaborator record from the database
+    fetch(`/api/collaboration/session?sessionId=${sessionId}`, {
+      method: "DELETE",
+    }).catch((e) => console.error("Failed to remove collaborator session", e));
+
     setIsCollaborationActive(false);
     setActiveUsers([]);
     setCursors(new Map());
     setIsConnected(false);
-  }, [logActivity]);
+  }, [logActivity, sessionId]);
 
   return {
     activeUsers,
