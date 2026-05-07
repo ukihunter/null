@@ -37,21 +37,43 @@ async function generateWithGemini(
 
   const systemPrompt = `You are a coding assistant. Help with code, debugging, and best practices. Keep responses concise and practical.`;
 
-  // Format messages for Gemini API
-  const formattedMessages = messages.map((msg) => ({
-    role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content }],
-  }));
+  // Format and strict-alternate messages for Gemini API
+  // Gemini requires strictly alternating user/model roles.
+  const formattedMessages: { role: string; parts: { text: string }[] }[] = [];
+
+  for (const msg of messages) {
+    const mappedRole = msg.role === "assistant" ? "model" : "user";
+    const lastMsg = formattedMessages[formattedMessages.length - 1];
+
+    if (lastMsg && lastMsg.role === mappedRole) {
+      // Squash consecutive same-role messages
+      lastMsg.parts[0].text += "\\n\\n" + msg.content;
+    } else {
+      formattedMessages.push({
+        role: mappedRole,
+        parts: [{ text: msg.content }],
+      });
+    }
+  }
 
   // Add system prompt as first user message if needed
-  const contents = [
+  let contents = [
     { role: "user", parts: [{ text: systemPrompt }] },
     {
       role: "model",
       parts: [{ text: "I understand. I'll help you with coding tasks." }],
     },
-    ...formattedMessages,
   ];
+
+  // If the first message in our formatted history is 'model', Gemini throws an error
+  // because after our prepended 'model' message, there must be a 'user' message.
+  if (formattedMessages.length > 0 && formattedMessages[0].role === "model") {
+    // Merge it into the initial 'model' acknowledgment
+    contents[1].parts[0].text += "\\n\\n" + formattedMessages[0].parts[0].text;
+    formattedMessages.shift(); // remove it
+  }
+
+  contents = [...contents, ...formattedMessages];
 
   try {
     // Use the model name directly for v1beta API

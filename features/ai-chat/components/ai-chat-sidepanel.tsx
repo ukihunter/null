@@ -476,7 +476,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     });
   };
 
-  // Enhanced code suggestions with more categories
+  // Enhanced code suggestions based ONLY on actual content patterns, not chat messages.
   const generateCodeSuggestions = (
     content: string,
     attachments: FileAttachment[],
@@ -485,71 +485,8 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
 
     // Context-aware suggestions based on active file
     if (activeFileContent && activeFileName) {
-      // Security suggestions
-      if (
-        content.toLowerCase().includes("security") ||
-        content.toLowerCase().includes("vulnerability")
-      ) {
-        suggestions.push({
-          id: "security-headers",
-          title: "Add Security Headers",
-          description: "Implement security headers for web applications",
-          code: `// Security headers middleware\nconst securityHeaders = {\n  'X-Content-Type-Options': 'nosniff',\n  'X-Frame-Options': 'DENY',\n  'X-XSS-Protection': '1; mode=block',\n  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',\n  'Content-Security-Policy': \"default-src 'self'\"\n};\n\napp.use((req, res, next) => {\n  Object.entries(securityHeaders).forEach(([key, value]) => {\n    res.setHeader(key, value);\n  });\n  next();\n});`,
-          language: activeFileLanguage || "javascript",
-          fileName: activeFileName,
-          confidence: 0.9,
-          category: "security",
-        });
-      }
-
-      // Performance optimization suggestions
-      if (
-        content.toLowerCase().includes("optimize") ||
-        content.toLowerCase().includes("performance")
-      ) {
-        suggestions.push({
-          id: "performance-optimization",
-          title: "Performance Optimization",
-          description:
-            "Optimize component rendering with React.memo and useMemo",
-          code: `import React, { memo, useMemo, useCallback } from 'react';\n\nconst OptimizedComponent = memo(({ data, onUpdate }) => {\n  const processedData = useMemo(() => {\n    return data.map(item => ({\n      ...item,\n      processed: true\n    }));\n  }, [data]);\n\n  const handleUpdate = useCallback((id) => {\n    onUpdate(id);\n  }, [onUpdate]);\n\n  return (\n    <div>\n      {processedData.map(item => (\n        <div key={item.id} onClick={() => handleUpdate(item.id)}>\n          {item.name}\n        </div>\n      ))}\n    </div>\n  );\n});\n\nexport default OptimizedComponent;`,
-          language: activeFileLanguage || "jsx",
-          fileName: activeFileName,
-          confidence: 0.85,
-          category: "optimization",
-        });
-      }
-
-      // Error handling suggestions
-      if (
-        content.toLowerCase().includes("error") ||
-        content.toLowerCase().includes("fix")
-      ) {
-        suggestions.push({
-          id: "error-boundary",
-          title: "Add Error Boundary",
-          description: "Comprehensive error boundary for React applications",
-          code: `import React from 'react';\n\nclass ErrorBoundary extends React.Component {\n  constructor(props) {\n    super(props);\n    this.state = { hasError: false, error: null, errorInfo: null };\n  }\n\n  static getDerivedStateFromError(error) {\n    return { hasError: true };\n  }\n\n  componentDidCatch(error, errorInfo) {\n    this.setState({\n      error: error,\n      errorInfo: errorInfo\n    });\n    \n    // Log error to monitoring service\n    console.error('Error caught by boundary:', error, errorInfo);\n  }\n\n  render() {\n    if (this.state.hasError) {\n      return (\n        <div className=\"error-boundary\">\n          <h2>Something went wrong.</h2>\n          <details style={{ whiteSpace: 'pre-wrap' }}>\n            {this.state.error && this.state.error.toString()}\n            <br />\n            {this.state.errorInfo.componentStack}\n          </details>\n        </div>\n      );\n    }\n\n    return this.props.children;\n  }\n}`,
-          language: activeFileLanguage || "jsx",
-          fileName: activeFileName,
-          confidence: 0.88,
-          category: "bug_fix",
-        });
-      }
-
-      // Type safety suggestions for TypeScript
-      if (activeFileLanguage === "typescript" || activeFileLanguage === "tsx") {
-        suggestions.push({
-          id: "advanced-types",
-          title: "Advanced TypeScript Types",
-          description: "Improve type safety with advanced TypeScript patterns",
-          code: `// Utility types for better type safety\ntype DeepReadonly<T> = {\n  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];\n};\n\ntype NonNullable<T> = T extends null | undefined ? never : T;\n\ntype ApiResponse<T> = {\n  data: T;\n  status: 'success' | 'error';\n  message?: string;\n  timestamp: Date;\n};\n\n// Generic hook with proper typing\nfunction useApi<T>(url: string): {\n  data: T | null;\n  loading: boolean;\n  error: string | null;\n  refetch: () => Promise<void>;\n} {\n  const [data, setData] = useState<T | null>(null);\n  const [loading, setLoading] = useState(false);\n  const [error, setError] = useState<string | null>(null);\n\n  const refetch = useCallback(async () => {\n    setLoading(true);\n    setError(null);\n    try {\n      const response = await fetch(url);\n      const result: ApiResponse<T> = await response.json();\n      setData(result.data);\n    } catch (err) {\n      setError(err instanceof Error ? err.message : 'Unknown error');\n    } finally {\n      setLoading(false);\n    }\n  }, [url]);\n\n  return { data, loading, error, refetch };\n}`,
-          language: "typescript",
-          fileName: activeFileName,
-          confidence: 0.92,
-          category: "feature",
-        });
-      }
+      // We removed the hardcoded chat-string checks because they interfered
+      // with arbitrary query strings like "fix this html file" and returned React code.
     }
 
     // Analyze attachments for context
@@ -712,12 +649,16 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
           },
         ]);
       } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("AI API Error:", errorData);
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             content:
-              "Sorry, I encountered an error while processing your request. Please try again.",
+              typeof errorData.details === "string" 
+                ? \`⚠️ Error: \${errorData.details}\`
+                : "Sorry, I encountered an error while processing your request. Please try again.",
             timestamp: new Date(),
             id: Date.now().toString(),
             type: messageType,
