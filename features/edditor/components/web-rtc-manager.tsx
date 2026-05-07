@@ -150,7 +150,10 @@ export function WebRTCManager({
               <div className="h-44 w-full bg-black overflow-hidden relative">
                 <div
                   className="grid h-full w-full gap-1 bg-black p-1"
-                  style={{ gridTemplateColumns: Object.keys(remoteStreams).length > 0 ? "1fr 1fr" : "1fr" }}
+                  style={{
+                    gridTemplateColumns: Object.keys(remoteStreams).length > 0 ? "repeat(2, 1fr)" : "1fr",
+                    gridTemplateRows: Object.keys(remoteStreams).length > 1 ? "repeat(2, 1fr)" : "1fr"
+                  }}
                 >
                   <video
                     autoPlay
