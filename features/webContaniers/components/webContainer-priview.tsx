@@ -37,6 +37,8 @@ const killPort = async (instance: WebContainer, port: number, writeToTerminal?: 
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
     await Promise.race([killProcess.exit, timeout]);
     if (writeToTerminal) writeToTerminal(`[System] Port ${port} cleanup complete.\r\n`);
+    // Add a small delay to ensure the OS completely releases the port
+    await new Promise((resolve) => setTimeout(resolve, 500));
   } catch (err) {
     if (writeToTerminal) writeToTerminal(`[System] Port ${port} cleanup skipped.\r\n`);
     console.warn(`Could not kill port ${port}:`, err);
@@ -196,6 +198,12 @@ const WebContainerPreview = ({
         setLoadingState((prev) => ({ ...prev, installing: false, starting: true }));
         setCurrentStep(4);
         
+        if (serverProcessRef.current) {
+          write("[System] Terminating previous server process...\r\n");
+          serverProcessRef.current.kill();
+          serverProcessRef.current = null;
+        }
+
         const startCmd = await getStartCommand(instance);
         write(`[System] Cleaning up ports and starting server with 'npm run ${startCmd}'...\r\n`);
         

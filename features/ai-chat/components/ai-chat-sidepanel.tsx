@@ -1136,12 +1136,10 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                   </p>
                   <div className="grid grid-cols-2 gap-2 max-w-lg mx-auto">
                     {[
-                      "Review my React component for performance",
-                      "Fix TypeScript compilation errors",
-                      "Optimize database query performance",
-                      "Add comprehensive error handling",
-                      "Implement security best practices",
-                      "Refactor code for better maintainability",
+                      "Make a simple login page in html",
+                      "Fix this code ",
+                      "Optimize this code ",
+                      "Review this code",
                     ].map((suggestion) => (
                       <button
                         key={suggestion}
