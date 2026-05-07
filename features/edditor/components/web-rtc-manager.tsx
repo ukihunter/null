@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { GripHorizontal, Maximize2, Minimize2, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import {
+  GripHorizontal,
+  Maximize2,
+  Minimize2,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface WebRTCManagerProps {
@@ -25,8 +33,13 @@ export function WebRTCManager({
 }: WebRTCManagerProps) {
   const [isVideoBoxMinimized, setIsVideoBoxMinimized] = useState(false);
   const [videoBoxPosition, setVideoBoxPosition] = useState({ x: 0, y: 0 });
-  const [videoBoxPositionInitialized, setVideoBoxPositionInitialized] = useState(false);
-  const dragStateRef = React.useRef({ dragging: false, offsetX: 0, offsetY: 0 });
+  const [videoBoxPositionInitialized, setVideoBoxPositionInitialized] =
+    useState(false);
+  const dragStateRef = React.useRef({
+    dragging: false,
+    offsetX: 0,
+    offsetY: 0,
+  });
 
   const formatDuration = useCallback((totalSec: number) => {
     const sec = Math.max(0, Math.floor(totalSec));
@@ -38,7 +51,12 @@ export function WebRTCManager({
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || callMode !== "video" || videoBoxPositionInitialized) return;
+    if (
+      typeof window === "undefined" ||
+      callMode !== "video" ||
+      videoBoxPositionInitialized
+    )
+      return;
     setVideoBoxPosition({
       x: Math.max(16, window.innerWidth - 304),
       y: Math.max(16, window.innerHeight - 220),
@@ -59,13 +77,21 @@ export function WebRTCManager({
     window.removeEventListener("mouseup", stopVideoBoxDragging);
   }, [handleVideoBoxMouseMove]);
 
-  const startVideoBoxDragging = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    dragStateRef.current.dragging = true;
-    dragStateRef.current.offsetX = event.clientX - videoBoxPosition.x;
-    dragStateRef.current.offsetY = event.clientY - videoBoxPosition.y;
-    window.addEventListener("mousemove", handleVideoBoxMouseMove);
-    window.addEventListener("mouseup", stopVideoBoxDragging);
-  }, [handleVideoBoxMouseMove, stopVideoBoxDragging, videoBoxPosition.x, videoBoxPosition.y]);
+  const startVideoBoxDragging = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      dragStateRef.current.dragging = true;
+      dragStateRef.current.offsetX = event.clientX - videoBoxPosition.x;
+      dragStateRef.current.offsetY = event.clientY - videoBoxPosition.y;
+      window.addEventListener("mousemove", handleVideoBoxMouseMove);
+      window.addEventListener("mouseup", stopVideoBoxDragging);
+    },
+    [
+      handleVideoBoxMouseMove,
+      stopVideoBoxDragging,
+      videoBoxPosition.x,
+      videoBoxPosition.y,
+    ],
+  );
 
   useEffect(() => {
     return () => {
@@ -84,30 +110,43 @@ export function WebRTCManager({
           if ((el as any).srcObject !== stream) {
             (el as any).srcObject = stream;
             // Play with a catch block in case of auto-play issues
-            el.play().catch(e => console.warn("Audio autoplay blocked:", e));
+            el.play().catch((e) => console.warn("Audio autoplay blocked:", e));
           }
         }}
       />
     );
   }, []);
 
-  const MediaVideo = useCallback(({ stream, muted, className }: { stream: MediaStream; muted?: boolean; className?: string }) => {
-    return (
-      <video
-        autoPlay
-        playsInline
-        muted={!!muted}
-        className={className}
-        ref={(el) => {
-          if (!el) return;
-          if ((el as any).srcObject !== stream) {
-            (el as any).srcObject = stream;
-            el.play().catch(e => console.warn("Video autoplay blocked:", e));
-          }
-        }}
-      />
-    );
-  }, []);
+  const MediaVideo = useCallback(
+    ({
+      stream,
+      muted,
+      className,
+    }: {
+      stream: MediaStream;
+      muted?: boolean;
+      className?: string;
+    }) => {
+      return (
+        <video
+          autoPlay
+          playsInline
+          muted={!!muted}
+          className={className}
+          ref={(el) => {
+            if (!el) return;
+            if ((el as any).srcObject !== stream) {
+              (el as any).srcObject = stream;
+              el.play().catch((e) =>
+                console.warn("Video autoplay blocked:", e),
+              );
+            }
+          }}
+        />
+      );
+    },
+    [],
+  );
 
   if (callMode === "none") return null;
 
@@ -141,7 +180,11 @@ export function WebRTCManager({
               onClick={() => setIsVideoBoxMinimized((prev) => !prev)}
               title={isVideoBoxMinimized ? "Restore" : "Minimize"}
             >
-              {isVideoBoxMinimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+              {isVideoBoxMinimized ? (
+                <Maximize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Minimize2 className="h-3.5 w-3.5" />
+              )}
             </Button>
           </div>
 
@@ -151,8 +194,14 @@ export function WebRTCManager({
                 <div
                   className="grid h-full w-full gap-1 bg-black p-1"
                   style={{
-                    gridTemplateColumns: Object.keys(remoteStreams).length > 0 ? "repeat(2, 1fr)" : "1fr",
-                    gridTemplateRows: Object.keys(remoteStreams).length > 1 ? "repeat(2, 1fr)" : "1fr"
+                    gridTemplateColumns:
+                      Object.keys(remoteStreams).length > 0
+                        ? "repeat(2, 1fr)"
+                        : "1fr",
+                    gridTemplateRows:
+                      Object.keys(remoteStreams).length > 1
+                        ? "repeat(2, 1fr)"
+                        : "1fr",
                   }}
                 >
                   <video
@@ -161,13 +210,21 @@ export function WebRTCManager({
                     playsInline
                     className="h-full w-full rounded object-cover transform scale-x-[-1]"
                     ref={(el) => {
-                      if (el && localStreamRef.current && (el as any).srcObject !== localStreamRef.current) {
+                      if (
+                        el &&
+                        localStreamRef.current &&
+                        (el as any).srcObject !== localStreamRef.current
+                      ) {
                         (el as any).srcObject = localStreamRef.current;
                       }
                     }}
                   />
                   {Object.entries(remoteStreams).map(([userId, stream]) => (
-                    <MediaVideo key={userId} stream={stream} className="h-full w-full rounded object-cover" />
+                    <MediaVideo
+                      key={userId}
+                      stream={stream}
+                      className="h-full w-full rounded object-cover"
+                    />
                   ))}
                 </div>
               </div>
@@ -184,13 +241,22 @@ export function WebRTCManager({
                     title={isMuted ? "Unmute" : "Mute"}
                   >
                     {isMuted ? (
-                      <><MicOff className="h-3.5 w-3.5" /> Muted</>
+                      <>
+                        <MicOff className="h-3.5 w-3.5" /> Muted
+                      </>
                     ) : (
-                      <><Mic className="h-3.5 w-3.5" /> Mute</>
+                      <>
+                        <Mic className="h-3.5 w-3.5" /> Mute
+                      </>
                     )}
                   </Button>
                 </div>
-                <Button size="sm" variant="destructive" className="h-8 text-xs w-full font-medium" onClick={endCall}>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-8 text-xs w-full font-medium"
+                  onClick={endCall}
+                >
                   End Video Call
                 </Button>
               </div>
