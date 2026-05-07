@@ -99,6 +99,25 @@ async function generateWithGemini(
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Gemini API error:", errorText);
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (response.status === 429) {
+          const retryDelay =
+            errorJson.error?.details?.find(
+              (d: Record<string, unknown>) => "retryDelay" in d,
+            )?.retryDelay || "a few seconds";
+          throw new Error(
+            `Rate limit exceeded: You've hit the Gemini free-tier quota. Please wait ${retryDelay} before trying again.`,
+          );
+        }
+        if (errorJson.error && errorJson.error.message) {
+          throw new Error(`Gemini API error: ${errorJson.error.message}`);
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("Rate limit")) throw e;
+        if (e instanceof Error && e.message.startsWith("Gemini API error:"))
+          throw e;
+      }
       throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
